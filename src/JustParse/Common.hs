@@ -1,6 +1,7 @@
-module JustParse.Base (
+module JustParse.Common (
 -- Parsing
     Stream (..),
+    Parser,
     finalize,
     extend,
     parse,
@@ -19,8 +20,9 @@ module JustParse.Base (
     manyN,
     atLeast,
     exactly,
---    takeTill,
---    takeTill1,
+    eof,
+    takeTill,
+    takeTill1,
     oneOf,
     noneOf,
     anyToken,
@@ -45,8 +47,8 @@ module JustParse.Base (
 
 -- String Parsers
     string,
---    line,
---    word
+    line,
+    word
 ) where
 
 import Prelude hiding ( print, length )
@@ -59,9 +61,6 @@ import Data.Maybe
 import Control.Monad
 import Control.Applicative ((<|>), (<*), optional )
 
-import Debug.Trace
-prnt = flip trace
-
 test :: Stream s t => Parser s t a -> Parser s t Bool
 test p = 
     do 
@@ -71,10 +70,7 @@ test p =
             _ -> return True
 
 greedy :: Stream s t => Parser s t a -> Parser s t a
-greedy (Parser p) = Parser $ \s -> 
-    case s of
-        Nothing -> []
-        _ -> g (p s) 
+greedy (Parser p) = Parser $ \s -> g (p s) 
     where
         b (Done _ _) = True
         b _ = False
@@ -82,8 +78,8 @@ greedy (Parser p) = Parser $ \s ->
         f (Just s) = length s
         g [] = []
         g xs 
-            | all b xs = [minimumBy (comparing (f . leftover)) xs]
-            | otherwise = [Partial $ g . extend xs] 
+            | all b xs = [minimumBy (comparing (f . leftover)) xs] 
+            | otherwise = [Partial $ \s -> g $ extend s xs] 
 
 many :: Stream s t => Parser s t a -> Parser s t [a]
 many = mN 0 (-1)
@@ -100,11 +96,17 @@ atLeast = manyN
 exactly :: Stream s t => Int -> Parser s t a -> Parser s t [a]
 exactly n = mN n n
 
---takeTill :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
---takeTill p e = many p <* (void (lookAhead e) <|> void (lookAhead eof))
+eof :: Stream s t => Parser s t ()
+eof = Parser $ \s ->
+    case s of
+        Nothing -> [Done () s]
+        Just s' -> [Partial $ parse eof | s' == mempty]
 
---takeTill1 :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
---takeTill1 p e = many1 p <* (void (lookAhead e) <|> void (lookAhead eof))
+takeTill :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
+takeTill p e = many p <* (void (lookAhead e) <|> void (lookAhead eof))
+
+takeTill1 :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
+takeTill1 p e = many1 p <* (void (lookAhead e) <|> void (lookAhead eof))
 
 oneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
 oneOf ts = satisfy (`elem` ts)
@@ -113,7 +115,7 @@ noneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
 noneOf ts = satisfy (not . (`elem` ts))
 
 token :: (Eq t, Stream s t) => t -> Parser s t t
-token t = satisfy (==t)
+token t = Parser $ \s -> (parse (satisfy (==t)) s) 
 
 anyToken :: Stream s t => Parser s t t
 anyToken = satisfy (const True)
@@ -127,7 +129,7 @@ lookAhead (Parser p) = Parser $ \s ->
         p s >>= g
 
 char :: Stream s Char => Char -> Parser s Char Char
-char = token
+char c = token c 
 
 anyChar :: Stream s Char => Parser s Char Char
 anyChar = anyToken
@@ -174,8 +176,12 @@ string = mapM char
 eol :: Stream s Char => Parser s Char String
 eol = string "\r\n" <|> string "\n\r" <|> string "\n"
 
---line :: Stream s Char => Parser s Char String
---line = (many1 (noneOf "\r\n") <* (void eol <|> void eof)) <|> (eol >> return "")
+line :: Stream s Char => Parser s Char String
+line = (many1 (noneOf "\r\n") <* (void eol <|> void eof)) <|> (eol >> return "")
 
---word :: Stream s Char => Parser s Char String
---word = optional (many1 space) >> takeTill1 (satisfy (not . isSpace)) space
+word :: Stream s Char => Parser s Char String
+word = optional (many1 space) >> takeTill1 (satisfy (not . isSpace)) space
+
+instance (Eq t) => Stream [t] t where
+    uncons [] = Nothing
+    uncons (x:xs) = Just (x, xs)

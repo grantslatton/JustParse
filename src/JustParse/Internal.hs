@@ -20,11 +20,7 @@ import System.Environment
 import Data.List hiding ( length )
 import Data.Either
 import Data.Monoid
-
-import Debug.Trace
-prnt a b = trace (show b) a
-b (Done _ _) = True
-b _ = False
+import Data.Maybe
 
 -- Typical uncons method as found in a lot of containers such as ByteString
 -- Stream type s, token type t. Monoid s so we have access to mempty. Eq s
@@ -66,7 +62,7 @@ instance Stream s t => Alternative (Parser s t) where
 -- Done containing the value, and the Stream as a leftover
 instance Stream s t => Monad (Parser s t) where
     return v = Parser $ \s -> [Done v s] 
-    (Parser p) >>= f = Parser $ p >=> g 
+    (Parser p) >>= f = Parser $ p >=> g
         where
             g (Done a s) = parse (f a) s 
             g (Partial p) = [Partial $ p >=> g] 
@@ -139,7 +135,7 @@ instance Stream s t => Functor (Result s t) where
     fmap f (Done a s) = Done (f a) s
     fmap f (Partial p) = Partial $ map (fmap f) . p
 
-instance Show a => Show (Result s t a) where
+instance (Show a, Stream s t) => Show (Result s t a) where
     show (Partial _) = "Partial"
     show (Done a _) = show a
 
@@ -154,10 +150,8 @@ satisfy f = Parser $ \s ->
     case s of
         Nothing -> []
         Just s' -> case uncons s' of
-            Nothing ->[Partial $ parse (satisfy f)]
-            Just x -> g x
-    where
-        g (x, xs) = [Done x (Just xs) | f x] 
+            Nothing -> [Partial $ parse (satisfy f)]
+            Just (x, xs) -> [Done x (Just xs) | f x]
 
 -- Takes a lower and upper bound, and a Parser. Returns all of the
 -- results of the parser being apply M through N times. To make N
@@ -165,23 +159,26 @@ satisfy f = Parser $ \s ->
 mN :: Stream s t => Int -> Int -> Parser s t a -> Parser s t [a]
 mN _ 0 _ = Parser $ \s -> [Done [] s] 
 mN m n p = Parser $ \s -> 
-    case s of
-        Nothing -> []
-        _ -> let r' = parse p s >>= g in if m == 0 then Done [] s:r' else r'
+    if m == 0 
+        then Done [] s : (parse p s >>= g)
+        else             parse p s >>= g
     where
         m' = if m == 0 then 0 else m-1
         g (Done a s) = parse (mN m' (n-1) p) s >>= h a
-        g (Partial p') = [Partial $ p' >=> g] 
+        g (Partial p') = [Partial $ p' >=> g]
         h a (Done as s) = [Done (a:as) s]
-        h a (Partial p') = [Partial $ p' >=> h a] 
+        h a (Partial p') = [Partial $ p' >=> h a]
 
 -- Takes results and supplies mempty to any remaining Partials
 finalize :: Stream s t => [Result s t a] -> [Result s t a]
-finalize rs = extend rs Nothing
+finalize = extend Nothing
 
 -- Takes results and input and supplies the input to any Partials
-extend :: Stream s t => [Result s t a] -> Maybe s -> [Result s t a]
-extend rs s = rs >>= g
+extend :: Stream s t => Maybe s -> [Result s t a] -> [Result s t a]
+extend s rs = rs >>= g --`prnt` (show (map i rs, map i (rs >>= g), h s))
     where
         g (Partial p) = p s
-        g (Done a s') = [Done a (mappend s s')]
+        g (Done a s') = [Done a (f s' s)]
+        f Nothing _ = Nothing
+        f (Just s) Nothing = if s == mempty then Nothing else Just s
+        f s s' = mappend s s'
