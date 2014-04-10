@@ -24,7 +24,10 @@ as possible. This is makes writing a parser equivalent to the regular expression
         return (a,b,c)
 
 The problem is that the "many alphaNum" parser is greedy, and will consume the 
-final "alpha" term that we try to bind to c, resulting in a failed parse.
+final "alpha" term that we try to bind to c, resulting in a failed parse. We could
+write this using a combination of "try", "notFollowedBy", and "lookAhead" parsers, 
+but it doesn't capture the same elegance of "parse a letter, then some letters and 
+digits, then a letter". 
 
 JustParse removes this problem with its ability to match all possible parses. That
 same parser in JustParse, applied to the input "ab2c3d" would return:
