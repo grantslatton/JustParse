@@ -9,6 +9,7 @@ A simple and comprehensive Haskell parsing library
 * Allows for parsing arbitrary Streams (like Parsec)
 * Is not a monad transformer (like Attoparsec, unlike Parsec)
 * Returns a list of all possible parses (unlike Attoparsec and Parsec)
+* Allows for conversion of a regular expression to a parser
 
 ### Non-greedy parsing
 
@@ -41,3 +42,7 @@ The Partial result represents the branch of the parse tree in which the "many" t
 consumes all available input. Supplying it with something like "z~" would yield an
 additional result of ('a', "b2c3d", 'z'), since it will fail (and thus stop parsing)
 upon encountering the '~' character (which is not alphanumeric).
+
+If this behavior is undesirable (e.g. for performance reasons), or unneeded, a 
+parser can be wrapped in the "greedy" parser (e.g. "greedy (many alpha)") to force
+behavior similar to Parsec or Attoparsec.
