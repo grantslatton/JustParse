@@ -1,6 +1,7 @@
-module JustParse.Common (
+module Data.JustParse.Common (
 -- Parsing
     Stream (..),
+    Result (..),
     Parser,
     finalize,
     extend,
@@ -48,11 +49,12 @@ module JustParse.Common (
 -- String Parsers
     string,
     line,
-    word
+    word,
+
 ) where
 
 import Prelude hiding ( print, length )
-import JustParse.Internal 
+import Data.JustParse.Internal 
 import Data.Monoid
 import Data.List hiding ( length )
 import Data.Char
@@ -115,7 +117,7 @@ noneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
 noneOf ts = satisfy (not . (`elem` ts))
 
 token :: (Eq t, Stream s t) => t -> Parser s t t
-token t = Parser $ \s -> (parse (satisfy (==t)) s) 
+token t = Parser $ parse $ satisfy (==t)
 
 anyToken :: Stream s t => Parser s t t
 anyToken = satisfy (const True)
@@ -129,7 +131,7 @@ lookAhead (Parser p) = Parser $ \s ->
         p s >>= g
 
 char :: Stream s Char => Char -> Parser s Char Char
-char c = token c 
+char = token 
 
 anyChar :: Stream s Char => Parser s Char Char
 anyChar = anyToken

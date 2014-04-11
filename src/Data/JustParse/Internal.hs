@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
-module JustParse.Internal (
+module Data.JustParse.Internal (
     satisfy,
     mN,
     finalize,
