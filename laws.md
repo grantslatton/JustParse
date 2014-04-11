@@ -4,15 +4,15 @@
     NTS: return a >>= f ~ f a
 
     1.  return a >>= f                                  -- Begin
-    2.  Parser $ \s -> [Done a s] >>= f                 -- Substitution
-    3.  Parser $ \s -> [Done a s] >=> g                 -- Substitution
+    2.  Parser $ \s -> [Done a s] >>= f                 -- Definition of return
+    3.  Parser $ \s -> [Done a s] >=> g                 -- Definition of bind
     4.  Parser $ \x -> (\s -> [Done a s]) x >>= g       -- Definition of (>=>)
     5.  Parser $ \x -> [Done a x] >>= g                 -- Apply x to the lambda
-    6.  Parser $ \x -> concat (map g [Done a x])        -- Subsitution
+    6.  Parser $ \x -> concat (map g [Done a x])        -- Definition of bind for lists
     7.  Parser $ \x -> concat [g (Done a x)]            -- Inline map
     8.  Parser $ \x -> g (Done a x)                     -- concat of a 1-item list is the item
-    9.  Parser $ \x -> parse (f a) x                    -- Definition of g
-    10. Parser $ parse (f a)                            -- Beta-reduce
+    9.  Parser $ \x -> parse (f a) x                    -- Definition of g for a Done
+    10. Parser $ parse (f a)                            -- Eta-reduce
     11. f a                                             -- Definition of Parser 
     Q.E.D.
 
@@ -34,7 +34,10 @@
         1. g (Partial p)                                    -- Begin
         2. [Partial $ p >=> g]                              -- Definition of g
         ?!?!?!?!?!?!?!?!?!?!?!?!?
+        I think this calls for Structural Induction?
 
     4. Parser $ \x -> p x                               -- When f ~ return, g r = [r], hence concat (map g (p x)) ~ id
     5. Parser p                                         -- Eta-reduce
+    6. m                                                -- Definition of m
+    Q.E.D.
 

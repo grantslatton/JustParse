@@ -6,6 +6,9 @@ module Data.JustParse.Common (
     finalize,
     extend,
     parse,
+    justParse,
+    runParser,
+
 
 -- Primitive parsers
     satisfy,
@@ -62,6 +65,15 @@ import Data.Ord
 import Data.Maybe
 import Control.Monad
 import Control.Applicative ((<|>), (<*), optional )
+
+justParse :: Stream s t => Parser s t a -> s -> Maybe a
+justParse p s = 
+    case finalize (parse (greedy p) (Just s)) of
+        [] -> Nothing
+        (x:_) -> Just (value x)
+
+runParser :: Stream s t => Parser s t a -> s -> [Result s t a]
+runParser p = parse p . Just
 
 test :: Stream s t => Parser s t a -> Parser s t Bool
 test p = 

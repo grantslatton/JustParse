@@ -4,11 +4,15 @@ A simple and comprehensive Haskell parsing library
 
 ### Differences and similarities from `Parsec` and `attoparsec`
 
-* Allows for partial parsing (like `attoparsec`)
-* Allows for parsing arbitrary Streams (like `Parsec`)
-* Is not a monad transformer (like `attoparsec`, unlike `Parsec`)
-* Returns a list of all possible parses (unlike `attoparsec` and `Parsec`)
-* Allows for conversion of a regular expression to a parser
+##### Similarities to `Parsec`
+* Allows for parsing arbitrary Streams 
+* Makes extensive use of combinators
+##### Similarities to `attoparsec`
+* Allows for return partial results
+* Is not a monad transformer 
+##### Differences from both
+* Returns a list of all possible parses
+* Allows for conversion of a regular expression to a parser 
 
 ### Non-greedy parsing
 

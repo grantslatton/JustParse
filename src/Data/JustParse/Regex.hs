@@ -1,16 +1,14 @@
 module Data.JustParse.Regex (
     Match (..),
-    regex
+    regular
 ) where
 
 import Data.JustParse.Common
 import Control.Applicative ( (<|>), optional )
+import Control.Monad
 import Prelude 
 import Data.Monoid
 import Data.List (intercalate)
-
-import Debug.Trace
-prnt = flip trace
 
 data Match = 
     Match {
@@ -32,27 +30,22 @@ instance Monoid Match where
             groups = g ++ g'
         }
 
-regex :: Stream s Char => Parser s Char (Parser s Char Match)
-regex = 
-    do
-        ps <- greedy (many parser)
-        return $ do
-            rs <- sequence ps
-            return (mconcat rs)
+regular :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
+regular = liftM (liftM mconcat . sequence) (greedy $ many parser)
 
-parser :: Stream s Char => Parser s Char (Parser s Char Match)
+parser :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 parser = character <|> charClass <|> negCharClass <|> question <|> group <|> asterisk <|> plus <|> mn <|> period <|> pipe
 
-parserNP :: Stream s Char => Parser s Char (Parser s Char Match)
+parserNP :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 parserNP = character <|> charClass <|> negCharClass <|> question <|> group <|> asterisk <|> plus <|> mn <|> period 
 
-restricted :: Stream s Char => Parser s Char (Parser s Char Match)
+restricted :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 restricted = character <|> charClass <|> negCharClass <|> group <|> period
 
 unreserved :: Stream s Char => Parser s Char Char
-unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?:<>|"
+unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?:<>|."
 
-character :: Stream s Char => Parser s Char (Parser s Char Match)
+character :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 character = 
     do
         c <- unreserved
@@ -60,7 +53,7 @@ character =
             c' <- char c
             return $ Match [c] []
 
-charClass :: Stream s Char => Parser s Char (Parser s Char Match)
+charClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 charClass = 
     do
         char '['
@@ -70,7 +63,7 @@ charClass =
             c' <- oneOf c
             return $ Match [c'] []
 
-negCharClass :: Stream s Char => Parser s Char (Parser s Char Match)
+negCharClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 negCharClass = 
     do
         string "[^"
@@ -80,7 +73,7 @@ negCharClass =
             c' <- noneOf c
             return $ Match [c'] []
 
-period :: Stream s Char => Parser s Char (Parser s Char Match)
+period :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 period = 
     do
         char '.'
@@ -89,44 +82,38 @@ period =
             return $ Match [c] []
 
 
-question :: Stream s Char => Parser s Char (Parser s Char Match)
+question :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 question = 
     do
         p <- restricted
         char '?'
-        return $ do
-            r <- mN 0 1 p
-            return $ mconcat r
+        return $ liftM mconcat (mN 0 1 p)
 
-group :: Stream s Char => Parser s Char (Parser s Char Match)
+group :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 group = 
     do
         string "("
-        p <- regex
+        p <- regular
         char ')'
         return $ do
             r <- p
             return $ r { groups = [r] } 
 
-asterisk :: Stream s Char => Parser s Char (Parser s Char Match)
+asterisk :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 asterisk = 
     do
         p <- restricted
         char '*'
-        return $ do
-            r <- many p
-            return $ mconcat r
+        return $ liftM mconcat (many p)
 
-plus :: Stream s Char => Parser s Char (Parser s Char Match)
+plus :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 plus = 
     do
         p <- restricted
         char '+'
-        return $ do
-            r <- many1 p
-            return $ mconcat r
+        return $ liftM mconcat (many1 p)
 
-mn :: Stream s Char => Parser s Char (Parser s Char Match)
+mn :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 mn = 
     do
         p <- restricted
@@ -135,16 +122,12 @@ mn =
         char ','
         r <- optional (many1 digit)
         char '}'
-        return $ do
-            r <- mN (maybe 0 read l) (maybe (-1) read r) p
-            return $ mconcat r
+        return $ liftM mconcat (mN (maybe 0 read l) (maybe (-1) read r) p)
 
-pipe :: Stream s Char => Parser s Char (Parser s Char Match)
+pipe :: (Stream s0 Char, Stream s1 Char) => Parser s0 Char (Parser s1 Char Match)
 pipe = 
     do
         p <- parserNP
         char '|'
         p' <- parser
-        return $ do
-            r <- p <|> p'
-            return $ r
+        return $ p <|> p'
