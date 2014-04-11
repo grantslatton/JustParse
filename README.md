@@ -7,9 +7,11 @@ A simple and comprehensive Haskell parsing library
 ##### Similarities to `Parsec`
 * Allows for parsing arbitrary Streams 
 * Makes extensive use of combinators
+
 ##### Similarities to `attoparsec`
 * Allows for return partial results
 * Is not a monad transformer 
+
 ##### Differences from both
 * Returns a list of all possible parses
 * Allows for conversion of a regular expression to a parser 
