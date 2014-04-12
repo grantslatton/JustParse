@@ -1,14 +1,22 @@
 module Data.JustParse.Regex (
     Match (..),
-    regular
+    regex
 ) where
 
-import Data.JustParse.Common
+import Data.JustParse.Common ( char, string, many1, digit, Parser, Stream, noneOf, oneOf, greedy, many, mN, anyChar, leftover, value, finalize, parse )
 import Control.Applicative ( (<|>), optional )
-import Control.Monad
-import Prelude 
-import Data.Monoid
-import Data.List (intercalate)
+import Control.Monad ( liftM, mzero )
+import Data.Monoid ( Monoid, mconcat, mempty, mappend )
+import Data.Maybe ( isJust )
+import Data.List ( intercalate )
+
+regex :: Stream s Char => String -> Parser s Char Match
+regex s 
+    | null r = mzero
+    | isJust $ leftover $ head r = mzero
+    | otherwise = value $ head r
+    where
+        r = finalize (parse (greedy regular) (Just s))
 
 data Match = 
     Match {
