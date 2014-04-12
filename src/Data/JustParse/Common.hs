@@ -98,7 +98,16 @@ greedy (Parser n p) = Parser ("greedy "++n) $ \s -> g (p s)
         f (Just s) = length s
         g [] = []
         g xs 
-            | all b xs = [minimumBy (comparing (f . leftover)) xs] 
+            | all b xs = 
+                let
+                    ds = filter isDone xs
+                    dm = minimum (map (f . leftover) ds)
+                    fs = filter isFail xs
+                    fm = minimum (map (f . leftover) fs)
+                in
+                    if not (null ds)
+                        then filter ((dm==) . f . leftover) ds
+                        else filter ((fm==) . f . leftover) fs
             | otherwise = [Partial $ \s -> g $ extend s xs] 
                 
 
