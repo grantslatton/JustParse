@@ -39,7 +39,6 @@ class (Eq s, Monoid s) => Stream s t | s -> t where
 -- successful or partial parses.
 data Parser s t a = 
     Parser { 
-        name :: String,
         parse :: Stream s t => Maybe s -> [Result s t a]
     }
 
@@ -50,7 +49,7 @@ instance Stream s t => Monoid (Parser s t a) where
 -- fmap f on a parser returns a parser that maps (fmap f) over its future
 -- results.
 instance Stream s t => Functor (Parser s t) where
-    fmap f (Parser n p) = Parser n $ \s -> map (fmap f) (p s)
+    fmap f (Parser p) = Parser $ \s -> map (fmap f) (p s)
 
 -- Uses the fact that Parser s t is a Monad
 instance Stream s t => Applicative (Parser s t) where
@@ -66,8 +65,8 @@ instance Stream s t => Alternative (Parser s t) where
 -- Returning a value returns a Parser that takes a Stream, and returns a 
 -- Done containing the value, and the Stream as a leftover
 instance Stream s t => Monad (Parser s t) where
-    return v = Parser "return" $ \s -> [Done v s] 
-    (Parser n p) >>= f = Parser n $ p >=> g
+    return v = Parser $ \s -> [Done v s] 
+    (Parser p) >>= f = Parser $ p >=> g
         where
             g (Fail m l) = [Fail m l]
             g (Done a s) = parse (f a) s 
@@ -77,8 +76,8 @@ instance Stream s t => Monad (Parser s t) where
 -- mzero always returns no results
 -- mplus is the same as alternative
 instance Stream s t => MonadPlus (Parser s t) where
-    mzero = Parser "mzero" $ const []
-    mplus (Parser n1 p1) (Parser n2 p2) = Parser (n1 ++ " <|> " ++ n2) (\s -> p1 s ++ p2 s)
+    mzero = Parser $ const []
+    mplus (Parser p1) (Parser p2) = Parser (\s -> p1 s ++ p2 s)
 
 data Result s t a =
     Partial {
@@ -125,7 +124,7 @@ instance (Show a, Stream s t) => Show (Result s t a) where
 -- if the condition is true for the uncons'd token, the token is 
 -- returned wrapped in a Done, otherwise, the empty list is returned
 satisfy :: Stream s t => (t -> Bool) -> Parser s t t
-satisfy f = Parser "satisfy" $ \s -> 
+satisfy f = Parser $ \s -> 
     case s of
         Nothing -> [Fail "satisfy" s]
         Just s' -> case uncons s' of
@@ -139,8 +138,8 @@ satisfy f = Parser "satisfy" $ \s ->
 -- results of the parser being apply M through N times. To make N
 -- infinity, simply supply a negative upper bound.
 mN :: Stream s t => Int -> Int -> Parser s t a -> Parser s t [a]
-mN _ 0 _ = Parser "mN" $ \s -> [Done [] s] 
-mN m n p = Parser "mN" $ \s -> 
+mN _ 0 _ = Parser $ \s -> [Done [] s] 
+mN m n p = Parser $ \s -> 
     if m == 0 
         then Done [] s : (parse p s >>= g)
         else             parse p s >>= g
@@ -169,7 +168,7 @@ extend s rs = rs >>= g --`prnt` (show (map i rs, map i (rs >>= g), h s))
         f s s' = mappend s s'
 
 rename :: Stream s t => String -> Parser s t a -> Parser s t a
-rename s p = Parser s (map g . parse p)
+rename s p = Parser (map g . parse p)
     where
         g v@(Done _ _) = v
         g v@(Fail _ l) = Fail s l

@@ -89,7 +89,7 @@ test p =
             _ -> return True
 
 greedy :: Stream s t => Parser s t a -> Parser s t a
-greedy (Parser n p) = Parser ("greedy "++n) $ \s -> g (p s) 
+greedy (Parser p) = Parser $ \s -> g (p s) 
     where
         b (Done _ _) = True
         b (Fail _ _) = True
@@ -112,31 +112,34 @@ greedy (Parser n p) = Parser ("greedy "++n) $ \s -> g (p s)
                 
 
 many :: Stream s t => Parser s t a -> Parser s t [a]
-many p = rename ("many "++name p) (mN 0 (-1) p)
+many p = rename "many" (mN 0 (-1) p)
 
 many1 :: Stream s t => Parser s t a -> Parser s t [a]
-many1 p = rename ("many1 "++name p) (mN 1 (-1) p)
+many1 p = rename "many1" (mN 1 (-1) p)
 
 manyN :: Stream s t => Int -> Parser s t a -> Parser s t [a]
-manyN n p = rename ("manyN "++show n++" "++name p) (mN n (-1) p)
+manyN n p = rename "manyN" (mN n (-1) p)
 
 atLeast :: Stream s t => Int -> Parser s t a -> Parser s t [a]
-atLeast n p = rename ("atLeast "++show n++" "++name p) (mN n (-1) p)
+atLeast n p = rename "atLeast" (mN n (-1) p)
 
 exactly :: Stream s t => Int -> Parser s t a -> Parser s t [a]
-exactly n p = rename ("exactly "++show n) (mN n n p)
+exactly n p = rename "exactly" (mN n n p)
 
 eof :: Stream s t => Parser s t ()
-eof = Parser "eof" $ \s ->
+eof = Parser $ \s ->
     case s of
         Nothing -> [Done () s]
-        Just s' -> [Partial $ parse eof | s' == mempty]
+        Just s' -> 
+            if s' == mempty
+                then [Partial $ parse eof]
+                else [Fail "eof" (Just s')]
 
 takeTill :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
-takeTill p e = rename ("takeTill "++name p) (many p <* (void (lookAhead e) <|> void (lookAhead eof)))
+takeTill p e = rename "takeTill" (many p <* (void (lookAhead e) <|> void (lookAhead eof)))
 
 takeTill1 :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
-takeTill1 p e = rename ("takeTill1 "++name p) (many1 p <* (void (lookAhead e) <|> void (lookAhead eof)))
+takeTill1 p e = rename "takeTill1" (many1 p <* (void (lookAhead e) <|> void (lookAhead eof)))
 
 oneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
 oneOf ts = rename "oneOf" (satisfy (`elem` ts))
@@ -151,7 +154,7 @@ anyToken :: Stream s t => Parser s t t
 anyToken = rename "anyToken" (satisfy (const True))
 
 lookAhead :: Stream s t => Parser s t a -> Parser s t a
-lookAhead (Parser n p) = Parser ("lookAhead "++n) $ \s -> 
+lookAhead (Parser p) = rename "lookAhead" $ Parser $ \s -> 
     let 
         g (Done a _) = [Done a s]
         g (Partial p') = [Partial $ p' >=> g]
