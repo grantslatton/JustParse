@@ -61,7 +61,7 @@ module Data.JustParse.Common (
 
 import Prelude hiding ( print, length )
 import Data.JustParse.Internal ( Stream(..), Parser(..), satisfy, Result(..), length, extend, mN, finalize, isDone, isPartial, isFail, rename, (<?>) )
-import Data.Monoid ( mempty )
+import Data.Monoid ( mempty, Monoid )
 import Data.List ( minimumBy )
 import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, isPrint, 
                    isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, isPunctuation, 
@@ -70,17 +70,23 @@ import Data.Ord ( comparing )
 import Control.Monad ( void, (>=>) )
 import Control.Applicative ( (<|>), optional, (<*) )
 
-justParse :: Stream s t => Parser s t a -> s -> Maybe a
+-- A parser to use when you find yourself frustrated with documentation and want to
+-- JUST PARSE ALREADY. If the parser succeeds, it returns the first, longest parse.
+-- Otherwise it returns Nothing.
+justParse :: Stream s t => Parser s a -> s -> Maybe a
 justParse p s = 
     case finalize (parse (greedy p) (Just s)) of
         [] -> Nothing
         (Done v _:_) -> Just v
         (Fail m _:_) -> Nothing
 
-runParser :: Stream s t => Parser s t a -> s -> [Result s t a]
+-- Takes a stream, returns all results (including partials, fails)
+runParser :: Parser s a -> s -> [Result s a]
 runParser p = parse p . Just
 
-test :: Stream s t => Parser s t a -> Parser s t Bool
+-- Returns True if the parser would succeed if one were to apply it,
+-- Otherwise, False.
+test :: Parser s a -> Parser s Bool
 test p = 
     do 
         a <- optional (lookAhead p)
@@ -88,7 +94,9 @@ test p =
             Nothing -> return False
             _ -> return True
 
-greedy :: Stream s t => Parser s t a -> Parser s t a
+-- Only returns the results that consume the most input. If there are
+-- any successful results, it will return no failures.
+greedy :: Stream s t => Parser s a -> Parser s a
 greedy (Parser p) = Parser $ \s -> g (p s) 
     where
         b (Done _ _) = True
@@ -111,22 +119,22 @@ greedy (Parser p) = Parser $ \s -> g (p s)
             | otherwise = [Partial $ \s -> g $ extend s xs] 
                 
 
-many :: Stream s t => Parser s t a -> Parser s t [a]
+many :: Parser s a -> Parser s [a]
 many p = rename "many" (mN 0 (-1) p)
 
-many1 :: Stream s t => Parser s t a -> Parser s t [a]
+many1 :: Parser s a -> Parser s [a]
 many1 p = rename "many1" (mN 1 (-1) p)
 
-manyN :: Stream s t => Int -> Parser s t a -> Parser s t [a]
+manyN :: Int -> Parser s a -> Parser s [a]
 manyN n p = rename "manyN" (mN n (-1) p)
 
-atLeast :: Stream s t => Int -> Parser s t a -> Parser s t [a]
+atLeast :: Int -> Parser s a -> Parser s [a]
 atLeast n p = rename "atLeast" (mN n (-1) p)
 
-exactly :: Stream s t => Int -> Parser s t a -> Parser s t [a]
+exactly :: Int -> Parser s a -> Parser s [a]
 exactly n p = rename "exactly" (mN n n p)
 
-eof :: Stream s t => Parser s t ()
+eof :: (Eq s, Monoid s) => Parser s ()
 eof = Parser $ \s ->
     case s of
         Nothing -> [Done () s]
@@ -135,86 +143,88 @@ eof = Parser $ \s ->
                 then [Partial $ parse eof]
                 else [Fail "eof" (Just s')]
 
-takeTill :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
+takeTill :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
 takeTill p e = rename "takeTill" (many p <* (void (lookAhead e) <|> void (lookAhead eof)))
 
-takeTill1 :: Stream s t => Parser s t a -> Parser s t b -> Parser s t [a]
+takeTill1 :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
 takeTill1 p e = rename "takeTill1" (many1 p <* (void (lookAhead e) <|> void (lookAhead eof)))
 
-oneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
+oneOf :: (Eq t, Stream s t) => [t] -> Parser s t
 oneOf ts = rename "oneOf" (satisfy (`elem` ts))
 
-noneOf :: (Eq t, Stream s t) => [t] -> Parser s t t
+noneOf :: (Eq t, Stream s t) => [t] -> Parser s t
 noneOf ts = rename "noneOf" (satisfy (not . (`elem` ts)))
 
-token :: (Eq t, Stream s t) => t -> Parser s t t
+token :: (Eq t, Stream s t) => t -> Parser s t
 token t = rename "token" (satisfy (==t))
 
-anyToken :: Stream s t => Parser s t t
+anyToken :: Stream s t => Parser s t
 anyToken = rename "anyToken" (satisfy (const True))
 
-lookAhead :: Stream s t => Parser s t a -> Parser s t a
+lookAhead :: Parser s a -> Parser s a
 lookAhead (Parser p) = rename "lookAhead" $ Parser $ \s -> 
     let 
         g (Done a _) = [Done a s]
         g (Partial p') = [Partial $ p' >=> g]
+        g (Fail m _) = [Fail m s]
     in
         p s >>= g
 
-char :: Stream s Char => Char -> Parser s Char Char
+char :: Stream s Char => Char -> Parser s Char
 char c = rename ("char "++[c]) (token c)
 
-anyChar :: Stream s Char => Parser s Char Char
+anyChar :: Stream s Char =>  Parser s Char
 anyChar = rename "anyChar" anyToken
 
-ascii :: Stream s Char => Parser s Char Char
+ascii :: Stream s Char =>  Parser s Char
 ascii = rename "ascii" (satisfy isAscii)
 
-latin1 :: Stream s Char => Parser s Char Char
+latin1 :: Stream s Char =>  Parser s Char
 latin1 = rename "latin1" (satisfy isLatin1)
 
-control :: Stream s Char => Parser s Char Char
+control :: Stream s Char =>  Parser s Char
 control = rename "control" (satisfy isControl)
 
-space :: Stream s Char => Parser s Char Char
+space :: Stream s Char =>  Parser s Char
 space = rename "space" (satisfy isSpace)
 
-lower :: Stream s Char => Parser s Char Char
+lower :: Stream s Char =>  Parser s Char
 lower = rename "lower" (satisfy isLower)
 
-upper :: Stream s Char => Parser s Char Char
+upper :: Stream s Char =>  Parser s Char
 upper = rename "upper" (satisfy isUpper)
 
-alpha :: Stream s Char => Parser s Char Char
+alpha :: Stream s Char =>  Parser s Char
 alpha = rename "alpha" (satisfy isAlpha)
 
-alphaNum :: Stream s Char => Parser s Char Char
+alphaNum :: Stream s Char =>  Parser s Char
 alphaNum = rename "alphaNum" (satisfy isAlphaNum)
 
-print :: Stream s Char => Parser s Char Char
+print :: Stream s Char =>  Parser s Char
 print = rename "print" (satisfy isPrint)
 
-digit :: Stream s Char => Parser s Char Char
+digit :: Stream s Char =>  Parser s Char
 digit = rename "digit" (satisfy isDigit)
 
-octDigit :: Stream s Char => Parser s Char Char
+octDigit :: Stream s Char =>  Parser s Char
 octDigit = rename "octDigit" (satisfy isOctDigit)
 
-hexDigit :: Stream s Char => Parser s Char Char
+hexDigit :: Stream s Char =>  Parser s Char
 hexDigit = rename "hexDigit" (satisfy isHexDigit)
 
-string :: Stream s Char => String -> Parser s Char String
+string :: Stream s Char => String -> Parser s String
 string s = rename ("string "++s) (mapM char s)
 
-eol :: Stream s Char => Parser s Char String
+eol :: Stream s Char => Parser s String
 eol = rename "eol" (string "\r\n" <|> string "\n\r" <|> string "\n")
 
-line :: Stream s Char => Parser s Char String
+line :: Stream s Char => Parser s String
 line = rename "line" ((many1 (noneOf "\r\n") <* (void eol <|> void eof)) <|> (eol >> return ""))
 
-word :: Stream s Char => Parser s Char String
+word :: Stream s Char => Parser s String
 word = rename "word" (optional (many1 space) >> takeTill1 (satisfy (not . isSpace)) space)
 
+-- Makes common types such as Strings into a Stream
 instance (Eq t) => Stream [t] t where
     uncons [] = Nothing
     uncons (x:xs) = Just (x, xs)
