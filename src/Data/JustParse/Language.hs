@@ -1,4 +1,4 @@
-module Data.JustParse.Regex (
+module Data.JustParse.Language (
     Match (..),
     regex
 ) where
@@ -16,8 +16,8 @@ import Data.List ( intercalate )
 -- is invalid, the parser will only return failures informing one of such things.
 regex :: Stream s Char => String -> Parser s Match
 regex s 
-    | null r = Parser $ \s -> [Fail "Invalid Regex" s]
-    | isJust $ leftover $ head r = Parser $ \s -> [Fail "Invalid Regex" s]
+    | null r = Parser $ \s -> [Fail ["Invalid Regex"] s]
+    | isJust $ leftover $ head r = Parser $ \s -> [Fail ["Invalid Regex"] s]
     | otherwise = value $ head r
     where
         r = finalize (parse (greedy regular) (Just s))

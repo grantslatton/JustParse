@@ -141,7 +141,7 @@ eof = Parser $ \s ->
         Just s' -> 
             if s' == mempty
                 then [Partial $ parse eof]
-                else [Fail "eof" (Just s')]
+                else [Fail ["eof"] (Just s')]
 
 takeTill :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
 takeTill p e = rename "takeTill" (many p <* (void (lookAhead e) <|> void (lookAhead eof)))

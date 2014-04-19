@@ -17,7 +17,7 @@ cabal-version:       >=1.8
 
 library
    exposed-modules: Data.JustParse
-   other-modules: Data.JustParse.Internal, Data.JustParse.Regex, Data.JustParse.Common
+   other-modules: Data.JustParse.Internal, Data.JustParse.Language, Data.JustParse.Common
   build-depends:       base ==4.6.*, containers
   hs-source-dirs: src
   extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts

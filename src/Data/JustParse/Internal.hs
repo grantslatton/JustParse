@@ -22,6 +22,7 @@ import Prelude hiding ( length )
 import Control.Monad ( MonadPlus, mzero, mplus, (>=>), ap )
 import Control.Applicative ( Alternative, Applicative, pure, (<*>), empty, (<|>) )
 import Data.Monoid ( Monoid, mempty, mappend )
+import Data.List ( intercalate )
 
 -- Typical uncons method as found in a lot of containers such as ByteString
 -- Stream type s, token type t. Monoid s so we have access to mempty. Eq s
@@ -89,7 +90,7 @@ data Result s a =
         leftover    :: Maybe s
     } |
     Fail {
-        message     :: String,
+        messages    :: [String],
         leftover    :: Maybe s
     }
 
@@ -116,7 +117,7 @@ instance Functor (Result s) where
 instance Show a => Show (Result s a) where
     show (Partial _) = "Partial"
     show (Done a _) = show a
-    show (Fail m l) = "Fail: " ++ m
+    show (Fail m l) = "Fail: \nIn: " ++ intercalate "\nIn: " m
 
 -- Takes a condition and returns a Parser that, upon receiving input,
 -- Fails if the input is Nothing, otherwise it uncons the input and
@@ -125,31 +126,36 @@ instance Show a => Show (Result s a) where
 satisfy :: Stream s t => (t -> Bool) -> Parser s t
 satisfy f = Parser $ \s -> 
     case s of
-        Nothing -> [Fail "satisfy" s]
+        Nothing -> [Fail ["satisfy"] s]
         Just s' -> case uncons s' of
             Nothing -> [Partial $ parse (satisfy f)]
             Just (x, xs) -> 
                 if f x 
                     then [Done x (Just xs)]
-                    else [Fail "satisfy" s]
+                    else [Fail ["satisfy"] s]
 
 -- Takes a lower and upper bound, and a Parser. Returns all of the
 -- results of the parser being apply M through N times. To make N
 -- infinity, simply supply a negative upper bound.
+-- We use a helper function so we can give one mN name on the stack
+-- instead of a ton of nested ones.
 mN :: Int -> Int -> Parser s a -> Parser s [a]
-mN _ 0 _ = Parser $ \s -> [Done [] s] 
-mN m n p = Parser $ \s -> 
+mN m n p = (mN' m n p) <?> "mN"
+
+mN' :: Int -> Int -> Parser s a -> Parser s [a]
+mN' _ 0 _ = Parser $ \s -> [Done [] s] 
+mN' m n p = Parser $ \s -> 
     if m == 0 
         then Done [] s : (parse p s >>= g)
         else             parse p s >>= g
     where
         m' = if m == 0 then 0 else m-1
-        g (Done a s) = parse (mN m' (n-1) p) s >>= h a
+        g (Done a s) = parse (mN' m' (n-1) p) s >>= h a
         g (Partial p') = [Partial $ p' >=> g]
-        g (Fail m l) = [Fail "mN" l]
+        g (Fail m l) = [Fail m l]
         h a (Done as s) = [Done (a:as) s]
         h a (Partial p') = [Partial $ p' >=> h a]
-        h a (Fail m l) = [Fail "mN" l]
+        h a (Fail m l) = [Fail m l]
 
 -- Takes results and supplies mempty to any remaining Partials
 finalize :: (Eq s, Monoid s) => [Result s a] -> [Result s a]
@@ -169,7 +175,7 @@ extend s rs = rs >>= g --`prnt` (show (map i rs, map i (rs >>= g), h s))
 rename :: String -> Parser s a -> Parser s a
 rename s p = Parser (map g . parse p)
     where
-        g v@(Fail _ l) = Fail s l
+        g v@(Fail m l) = Fail (s:m) l
         g v = v
 
 infixl 0 <?>
