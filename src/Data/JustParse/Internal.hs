@@ -140,7 +140,7 @@ satisfy f = Parser $ \s ->
 -- We use a helper function so we can give one mN name on the stack
 -- instead of a ton of nested ones.
 mN :: Int -> Int -> Parser s a -> Parser s [a]
-mN m n p = (mN' m n p) <?> "mN"
+mN m n p = mN' m n p <?> "mN"
 
 mN' :: Int -> Int -> Parser s a -> Parser s [a]
 mN' _ 0 _ = Parser $ \s -> [Done [] s] 
