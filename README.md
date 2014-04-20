@@ -60,10 +60,10 @@ JustParse provides the `regex` parser. This parser is of the type
 `Stream s Char => Parser s Match`. A `Match` object contains all of the text matched 
 within it, and a list of `Match` objects which represent any subgroups (which may 
 themselves contain subgroups, etc). These regular expressions are truly regular in
-that they do not have backreferences (for now). An example:
+that they do not have backreferences (for now). If one only wants the entirety of
+the matched text, the `regex'` parser will do that. Example:
 
-    p = regex' "ab+cd?"     -- regex' is the same as regex but only returns the 
-                            -- entire matched string
+    p = regex' "ab+cd?"
 
 is equivalent to the standard parser:
 
