@@ -2,7 +2,7 @@
 
 A simple and comprehensive Haskell parsing library
 
-### Differences and similarities from `Parsec` and `attoparsec`
+### Differences and similarities from `Parsec` and `Attoparsec`
 
 ##### Similarities to `Parsec`
 * Allows for parsing arbitrary Streams 
@@ -10,7 +10,7 @@ A simple and comprehensive Haskell parsing library
 * Returns relatively verbose errors
 * Allows for custom renaming of parsers
 
-##### Similarities to `attoparsec`
+##### Similarities to `Attoparsec`
 * Allows for return partial results
 * Is not a monad transformer 
 
@@ -20,7 +20,7 @@ A simple and comprehensive Haskell parsing library
 
 ### Non-greedy parsing
 
-The last item in that list is the most important. In both `Parsec` and `attoparsec`, 
+The last item in that list is the most important. In both `Parsec` and `Attoparsec`, 
 parsers such as "many" are greedy. That is, they will consume as much input as
 as possible. This is makes writing a parser equivalent to the regular expression
 `[A-z][A-z0-9]\*[A-z]` a bit tricky. We would be tempted to write:
@@ -52,7 +52,7 @@ upon encountering the `~` character (which is not alphanumeric).
 
 If this behavior is undesirable (e.g. for performance reasons), or unneeded, a 
 parser can be wrapped in the `greedy` parser (e.g. `greedy (many alpha)`) to force
-behavior similar to `Parsec` or `attoparsec`.
+behavior similar to `Parsec` or `Attoparsec`.
 
 ### Regex convenience
 
