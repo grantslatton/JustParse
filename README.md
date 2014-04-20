@@ -7,6 +7,8 @@ A simple and comprehensive Haskell parsing library
 ##### Similarities to `Parsec`
 * Allows for parsing arbitrary Streams 
 * Makes extensive use of combinators
+* Returns relatively verbose errors
+* Allows for custom renaming of parsers
 
 ##### Similarities to `attoparsec`
 * Allows for return partial results
@@ -51,3 +53,26 @@ upon encountering the `~` character (which is not alphanumeric).
 If this behavior is undesirable (e.g. for performance reasons), or unneeded, a 
 parser can be wrapped in the `greedy` parser (e.g. `greedy (many alpha)`) to force
 behavior similar to `Parsec` or `attoparsec`.
+
+### Regex convenience
+
+JustParse provides the `regex` parser. This parser is of the type 
+`Stream s Char => Parser s Match`. A `Match` object contains all of the text matched 
+within it, and a list of `Match` objects which represent any subgroups (which may 
+themselves contain subgroups, etc). These regular expressions are truly regular in
+that they do not have backreferences (for now). An example:
+
+    p = regex' "ab+cd?"     -- regex' is the same as regex but only returns the 
+                            -- entire matched string
+
+is equivalent to the standard parser:
+
+    p = do
+        a <- char 'a'
+        b <- many1 (char 'b')
+        c <- char 'c'
+        d <- option "" (string "d")
+        return (a:b++c:d)
+       
+So for small `String` parsers, or for use in larger parsers, the `regex` or `regex'`
+parsers prove very useful.

@@ -1,6 +1,7 @@
 module Data.JustParse.Language (
     Match (..),
-    regex
+    regex,
+    regex'
 ) where
 
 import Data.JustParse.Common ( char, string, many1, digit, Stream, noneOf, oneOf, greedy, many, mN, anyChar, leftover, value, finalize, parse, Result(..) )
@@ -21,6 +22,9 @@ regex s
     | otherwise = value $ head r
     where
         r = finalize (parse (greedy regular) (Just s))
+
+regex' :: Stream s Char => String -> Parser s String
+regex' = liftM matched . regex 
 
 -- A type that contains the matche text within it, and any subgroups
 data Match = 
