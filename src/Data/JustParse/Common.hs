@@ -44,6 +44,7 @@ module Data.JustParse.Common (
     eof,
     oneOf,
     noneOf,
+    token,
     anyToken,
     lookAhead,
 

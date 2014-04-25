@@ -53,6 +53,7 @@ module Data.JustParse (
     C.eof,
     C.oneOf,
     C.noneOf,
+    C.token,
     C.anyToken,
     C.lookAhead,
 
