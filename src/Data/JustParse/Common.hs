@@ -42,6 +42,8 @@ module Data.JustParse.Common (
     manyN,
     atLeast,
     exactly,
+    sepBy,
+    sepBy1,
     eof,
     oneOf,
     noneOf,
@@ -80,7 +82,7 @@ import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, is
                    isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, isPunctuation, 
                    isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, isAsciiLower )
 import Data.Ord ( comparing )
-import Control.Monad ( void, (>=>), liftM, mzero )
+import Control.Monad ( void, (>=>), liftM, mzero, liftM2 )
 import Control.Applicative ( (<|>), optional, (<*) )
 
 -- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
@@ -204,6 +206,14 @@ atLeast n p = rename "atLeast" (mN n (-1) p)
 -- | Parse exactly @n@ occurences of the 'Parser'. Equivalent to @'mN' n n@.
 exactly :: Int -> Parser s a -> Parser s [a]
 exactly n p = rename "exactly" (mN n n p)
+
+-- | @sepBy p s@ parsers any number of occurences of p separated by s
+sepBy :: Parser s a -> Parser s b -> Parser s [a]
+sepBy p s = sepBy1 p s <|> return []
+
+-- | @sepBy p s@ parsers at least 1 occurence of p separated by s
+sepBy1 :: Parser s a -> Parser s b -> Parser s [a]
+sepBy1 p s = liftM2 (:) p (many (s >> p))
 
 -- | Only succeeds when supplied with @Nothing@.
 eof :: (Eq s, Monoid s) => Parser s ()

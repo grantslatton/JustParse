@@ -51,6 +51,8 @@ module Data.JustParse (
     C.manyN,
     C.atLeast,
     C.exactly,
+    C.sepBy,
+    C.sepBy1,
     C.eof,
     C.oneOf,
     C.noneOf,
