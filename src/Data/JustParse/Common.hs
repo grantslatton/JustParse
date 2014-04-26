@@ -36,6 +36,7 @@ module Data.JustParse.Common (
     test,
     greedy,
     option,
+    tryUntil,
     many,
     many1,
     manyN,
@@ -79,7 +80,7 @@ import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, is
                    isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, isPunctuation, 
                    isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, isAsciiLower )
 import Data.Ord ( comparing )
-import Control.Monad ( void, (>=>), liftM )
+import Control.Monad ( void, (>=>), liftM, mzero )
 import Control.Applicative ( (<|>), optional, (<*) )
 
 -- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
@@ -173,6 +174,16 @@ option v p =
         case r of
             Nothing -> return v
             Just v' -> return v'
+
+tryUntil :: [Parser s a] -> Parser s a
+tryUntil [] = mzero
+tryUntil (Parser p:ps) = Parser $ \s ->
+    let 
+        vs = p s
+    in
+        if all isFail vs
+            then vs ++ parse (tryUntil ps) s
+            else vs
 
 -- | Parse any number of occurences of the 'Parser'. Equivalent to @'mN' 0 (-1)@.
 many :: Parser s a -> Parser s [a]

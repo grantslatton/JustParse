@@ -43,6 +43,7 @@ module Data.JustParse (
     C.test,
     C.greedy,
     C.option,
+    C.tryUntil,
     C.satisfy,
     C.mN,
     C.many,
