@@ -63,6 +63,7 @@ module Data.JustParse (
     -- * Char Parsers
     C.char,
     C.anyChar,
+    C.caseInsensitiveChar,
     C.ascii,
     C.latin1,
     C.control,
@@ -75,20 +76,26 @@ module Data.JustParse (
     C.digit,
     C.octDigit,
     C.hexDigit,
-    C.eol,
 
     -- * String Parsers
     C.string,
+    C.caseInsensitiveString,
+    C.eol,
 
     -- * Regex Parsers
     L.regex,
     L.regex',
-    L.Match(..)
+    L.Match(..),
+
+    -- * Numeric Parsers
+    N.decInt,
+    N.hexInt
 
 ) where
 
 import Data.JustParse.Language as L
 import Data.JustParse.Common as C
+import Data.JustParse.Numeric as N
 
 -- $overview
 -- 

@@ -54,6 +54,7 @@ module Data.JustParse.Common (
 -- Char Parsers
     char,
     anyChar,
+    caseInsensitiveChar,
     ascii,
     latin1,
     control,
@@ -66,10 +67,11 @@ module Data.JustParse.Common (
     digit,
     octDigit,
     hexDigit,
-    eol,
 
 -- String Parsers
     string,
+    caseInsensitiveString,
+    eol
 
 ) where
 
@@ -80,7 +82,8 @@ import Data.Maybe ( fromMaybe )
 import Data.List ( minimumBy )
 import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, isPrint, 
                    isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, isPunctuation, 
-                   isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, isAsciiLower )
+                   isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, isAsciiLower,
+                   toUpper, toLower )
 import Data.Ord ( comparing )
 import Control.Monad ( void, (>=>), liftM, mzero, liftM2 )
 import Control.Applicative ( (<|>), optional, (<*) )
@@ -253,8 +256,13 @@ lookAhead (Parser p) = rename "lookAhead" $ Parser $ \s ->
 char :: Stream s Char => Char -> Parser s Char
 char c = rename ("char "++[c]) (token c)
 
+-- | Char specific version of anyToken
 anyChar :: Stream s Char =>  Parser s Char
 anyChar = rename "anyChar" anyToken
+
+-- | Parse a specific char, ignoring case.
+caseInsensitiveChar :: Stream s Char => Char -> Parser s Char
+caseInsensitiveChar c = rename ("caseInsensitiveChar "++[c]) (char (toUpper c) <|> char (toLower c))
 
 ascii :: Stream s Char =>  Parser s Char
 ascii = rename "ascii" (satisfy isAscii)
@@ -295,6 +303,10 @@ hexDigit = rename "hexDigit" (satisfy isHexDigit)
 -- | Parse a specific string.
 string :: Stream s Char => String -> Parser s String
 string s = rename ("string "++s) (mapM char s)
+
+-- | Parse a specfic string, ignoring case.
+caseInsensitiveString :: Stream s Char => String -> Parser s String
+caseInsensitiveString s = rename ("caseInsensitiveString "++s) (mapM caseInsensitiveChar s)
 
 -- | Parses until a newline, carriage return + newline, or newline + carriage return.
 eol :: Stream s Char => Parser s String
