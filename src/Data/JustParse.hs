@@ -47,7 +47,9 @@ module Data.JustParse (
     C.satisfy,
     C.mN,
     C.many,
+    C.many',
     C.many1,
+    C.many1',
     C.manyN,
     C.atLeast,
     C.exactly,
@@ -88,6 +90,7 @@ module Data.JustParse (
     L.Match(..),
 
     -- * Numeric Parsers
+    N.decFloat,
     N.decInt,
     N.hexInt
 

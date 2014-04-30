@@ -1,10 +1,11 @@
 module Data.JustParse.Numeric (
+    decFloat,
     decInt,
     hexInt
 ) where
 
 import Data.JustParse.Common
-import Control.Monad ( liftM )
+import Control.Monad ( liftM, liftM2 )
 import Control.Applicative ( optional )
 import Data.Char ( ord, digitToInt, toUpper, isDigit, isHexDigit )
 
@@ -20,6 +21,16 @@ decInt =
             Just '-' -> return (-num)
             _ -> return num
 
+-- | Parse a float. If a decimal point is present, it must have at least 1 digit before and after the decimal point.
+decFloat :: Stream s Char => Parser s Float
+decFloat = 
+    do
+        sign <- optional (oneOf "-+")
+        whole <- many1 digit
+        fractional <- option ".0" (liftM2 (:) (char '.') (many1 digit))
+        case sign of
+            Just '-' -> return (-(read (whole ++ fractional)))
+            _ -> return (read (whole ++ fractional))
 
 -- | Reads many hexidecimal digits and returns them as an @Int@
 hexInt :: Stream s Char => Parser s Int

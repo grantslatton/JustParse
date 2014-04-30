@@ -38,7 +38,9 @@ module Data.JustParse.Common (
     option,
     tryUntil,
     many,
+    many',
     many1,
+    many1',
     manyN,
     atLeast,
     exactly,
@@ -194,9 +196,17 @@ tryUntil (Parser p:ps) = Parser $ \s ->
 many :: Parser s a -> Parser s [a]
 many p = rename "many" (mN 0 (-1) p)
 
+-- | @greedy . many@, useful for emulating Parsec or Attoparsec
+many' :: Stream s t => Parser s a -> Parser s [a]
+many' = greedy . many
+
 -- | Parse one or more occurence of the 'Parser'. Equivalent to @'mN' 1 (-1)@.
 many1 :: Parser s a -> Parser s [a]
 many1 p = rename "many1" (mN 1 (-1) p)
+
+-- | @greedy . many1@, useful for emulating Parsec or Attoparsec
+many1' :: Stream s t => Parser s a -> Parser s [a]
+many1' = greedy . many1
 
 -- | Parse at least @n@ occurences of the 'Parser'. Equivalent to @'mN' n (-1)@.
 manyN :: Int -> Parser s a -> Parser s [a]
