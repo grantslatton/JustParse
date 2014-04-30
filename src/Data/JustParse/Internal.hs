@@ -22,10 +22,7 @@ module Data.JustParse.Internal (
     Parser (..),
     Result (..),
     isDone,
-    isFail,
-    isPartial,
-    rename,
-    (<?>)
+    isPartial
 ) where
 
 import Prelude hiding ( length )
@@ -74,7 +71,6 @@ instance Monad (Parser s) where
     return v = Parser $ \s -> [Done v s] 
     (Parser p) >>= f = Parser $ p >=> g
         where
-            g (Fail m l) = [Fail m l]
             g (Done a s) = parse (f a) s 
             g (Partial p) = [Partial $ p >=> g] 
 
@@ -93,12 +89,7 @@ data Result s a
     Done {
         value       :: a,
         leftover    :: Maybe s
-    } |
-    -- | A @Fail@ contains a stack of error messages, and the @lftover@ stream, if any.
-    Fail {
-        messages    :: [String],
-        leftover    :: Maybe s
-    }
+    } 
 
 isDone :: Result s a -> Bool
 isDone (Done _ _) = True
@@ -108,19 +99,13 @@ isPartial :: Result s a -> Bool
 isPartial (Partial _) = True
 isPartial _ = False
 
-isFail :: Result s a -> Bool
-isFail (Fail _ _) = True
-isFail _ = False
-
 instance Functor (Result s) where
     fmap f (Partial p) = Partial $ map (fmap f) . p
     fmap f (Done a s) = Done (f a) s
-    fmap f (Fail m l) = Fail m l
 
 instance Show a => Show (Result s a) where
     show (Partial _) = "Partial"
     show (Done a _) = show a
-    show (Fail m l) = "Fail: \nIn: " ++ intercalate "\nIn: " m
 
 -- | @finalize@ takes a list of results (presumably returned from a 'Parser' or 'Partial',
 -- and supplies @Nothing@ to any remaining @Partial@ values, so that only 'Fail' and 'Done'
@@ -135,23 +120,8 @@ finalize = extend Nothing
 extend :: (Eq s, Monoid s) => Maybe s -> [Result s a] -> [Result s a]
 extend s rs = rs >>= g --`prnt` (show (map i rs, map i (rs >>= g), h s))
     where
-        g (Fail m l) = [Fail m (f l s)]
         g (Partial p) = p s
         g (Done a s') = [Done a (f s' s)]
         f Nothing _ = Nothing
         f (Just s) Nothing = if s == mempty then Nothing else Just s
         f s s' = mappend s s'
-
--- | @rename@ pushes a new error message onto the stack in case of failure.
--- This is particularly useful when debugging a complex 'Parser'.
-rename :: String -> Parser s a -> Parser s a
-rename s p = Parser (map g . parse p)
-    where
-        g v@(Fail m l) = Fail (s:m) l
-        g v = v
-
-
-infixl 0 <?>
--- | The infix version of 'rename'
-(<?>) :: Parser s a -> String -> Parser s a
-p <?> s = rename s p

@@ -17,7 +17,7 @@ module Data.JustParse.Language (
     regex'
 ) where
 
-import Data.JustParse.Common ( char, string, many1, digit, Stream, noneOf, oneOf, greedy, many, mN, anyChar, leftover, value, finalize, parse, Result(..), justParse, isFail )
+import Data.JustParse.Common ( char, string, many1, digit, Stream, noneOf, oneOf, greedy, many, mN, anyChar, leftover, value, finalize, parse, Result(..), justParse )
 import Data.JustParse.Internal( Parser (..) )
 import Control.Applicative ( (<|>), optional )
 import Control.Monad ( liftM, mzero )
@@ -30,13 +30,10 @@ import Data.List ( intercalate )
 -- If the regex is invalid, it returns a Parser that will only return
 -- 'Fail' with an \"Invalid Regex\" message.
 regex :: Stream s Char => String -> Parser s Match
-regex s 
-    | null r = Parser $ \s -> [Fail ["Invalid Regex"] s]
-    | isFail $ head r = Parser $ \s -> [Fail ["Invalid Regex"] s]
-    | isJust $ leftover $ head r = Parser $ \s -> [Fail ["Invalid Regex"] s]
-    | otherwise = value $ head r
-    where
-        r = finalize (parse (greedy regular) (Just s))
+regex s =
+    case justParse regular s of
+        Nothing -> mempty
+        Just v -> v
 
 -- | The same as 'regex', but only returns the full matched text.
 regex' :: Stream s Char => String -> Parser s String

@@ -34,10 +34,7 @@ module Data.JustParse (
     C.finalize,
     C.extend,
     C.isDone,
-    C.isFail,
     C.isPartial,
-    C.rename,
-    (C.<?>),
 
     -- * Generic Parsers
     C.test,
@@ -46,6 +43,7 @@ module Data.JustParse (
     C.tryUntil,
     C.satisfy,
     C.mN,
+    C.mN',
     C.many,
     C.many',
     C.many1,
@@ -54,7 +52,9 @@ module Data.JustParse (
     C.atLeast,
     C.exactly,
     C.sepBy,
+    C.sepBy',
     C.sepBy1,
+    C.sepBy1',
     C.eof,
     C.oneOf,
     C.noneOf,

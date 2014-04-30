@@ -23,3 +23,4 @@ library
         base ==4.6.*
     hs-source-dirs: src
     extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe
+    ghc-options: -O2

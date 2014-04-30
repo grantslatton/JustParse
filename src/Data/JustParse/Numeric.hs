@@ -16,7 +16,7 @@ decInt :: Stream s Char => Parser s Int
 decInt = 
     do
         sign <- optional (oneOf "-+")
-        num <- liftM read (many1 digit)
+        num <- liftM read (many1' digit)
         case sign of
             Just '-' -> return (-num)
             _ -> return num
@@ -26,8 +26,8 @@ decFloat :: Stream s Char => Parser s Float
 decFloat = 
     do
         sign <- optional (oneOf "-+")
-        whole <- many1 digit
-        fractional <- option ".0" (liftM2 (:) (char '.') (many1 digit))
+        whole <- many1' digit
+        fractional <- option ".0" (liftM2 (:) (char '.') (many1' digit))
         case sign of
             Just '-' -> return (-(read (whole ++ fractional)))
             _ -> return (read (whole ++ fractional))
@@ -37,7 +37,7 @@ hexInt :: Stream s Char => Parser s Int
 hexInt = 
     do
         sign <- optional (oneOf "-+")
-        num <- liftM (f . reverse) (many1 hexDigit)
+        num <- liftM (f . reverse) (many1' hexDigit)
         case sign of
             Just '-' -> return (-num)
             _ -> return num
