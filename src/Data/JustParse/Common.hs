@@ -31,6 +31,7 @@ module Data.JustParse.Common (
 -- Derived Parsers
 
 -- Generic Parsers
+    assert,
     test,
     greedy,
     option,
@@ -133,6 +134,10 @@ mN m n p = Parser $ \s ->
 
 mN' :: Stream s t => Int -> Int -> Parser s a -> Parser s [a]
 mN' m n p = greedy (mN m n p)
+
+assert :: Bool -> Parser s ()
+assert True = return ()
+assert False = mzero
 
 -- | Return @True@ if the 'Parser' would succeed if one were to apply it,
 -- otherwise, @False@.

@@ -37,6 +37,7 @@ module Data.JustParse (
     C.isPartial,
 
     -- * Generic Parsers
+    C.assert,
     C.test,
     C.greedy,
     C.option,
