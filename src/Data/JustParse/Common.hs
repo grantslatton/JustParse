@@ -22,6 +22,7 @@ module Data.JustParse.Common (
     runParser,
     isDone,
     isPartial,
+    toPartial,
 
 -- Primitive parsers
     satisfy,
@@ -79,8 +80,8 @@ module Data.JustParse.Common (
 ) where
 
 import Prelude hiding ( print, length )
-import Data.JustParse.Internal ( Stream(..), Parser(..), Result(..), extend, finalize, isDone, isPartial )
-import Data.Monoid ( mempty, Monoid )
+import Data.JustParse.Internal ( Stream(..), Parser(..), Result(..), extend, finalize, isDone, isPartial, toPartial )
+import Data.Monoid ( mempty, Monoid, mappend )
 import Data.Maybe ( fromMaybe )
 import Data.List ( minimumBy )
 import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, isPrint, 
@@ -141,7 +142,7 @@ assert False = mzero
 
 -- | Return @True@ if the 'Parser' would succeed if one were to apply it,
 -- otherwise, @False@.
-test :: Parser s a -> Parser s Bool
+test :: Monoid s => Parser s a -> Parser s Bool
 test p = 
     do 
         a <- optional (lookAhead p)
@@ -172,12 +173,18 @@ option v p =
             Nothing -> return v
             Just v' -> return v'
 
-tryUntil :: [Parser s a] -> Parser s a
+tryUntil :: (Eq s, Monoid s) => [Parser s a] -> Parser s a
 tryUntil [] = mzero
-tryUntil (Parser p:ps) = Parser $ \s ->
-    case p s of
-        [] -> parse (tryUntil ps) s
-        xs -> xs
+tryUntil v@(Parser p:ps) = Parser $ \s ->
+    let
+        g [] = parse (tryUntil ps) s
+        g xs
+            | any isDone xs = xs
+            | otherwise = [Partial $ \s' -> parse (tryUntil v) (mappend s s')]
+    in
+        g (p s)
+                    
+            
 
 -- | Parse any number of occurences of the 'Parser'. Equivalent to @'mN' 0 (-1)@.
 many :: Parser s a -> Parser s [a]
@@ -246,13 +253,13 @@ anyToken = satisfy (const True)
 
 -- | Applies the parser and returns its result, but resets
 -- the leftovers as if it consumed nothing.
-lookAhead :: Parser s a -> Parser s a
-lookAhead (Parser p) = Parser $ \s -> 
+lookAhead :: Monoid s => Parser s a -> Parser s a
+lookAhead v@(Parser p) = Parser $ \s -> 
     let 
         g (Done a _) = [Done a s]
-        g (Partial p') = [Partial $ p' >=> g]
+        g (Partial p') = [Partial $ \s' -> parse (lookAhead v) (mappend s s')]
     in
-        p s >>= g
+        p s >>= g 
 
 -- | Parse a specic char.
 char :: Stream s Char => Char -> Parser s Char

@@ -20,7 +20,7 @@ library
         Data.JustParse.Common,
         Data.JustParse.Numeric
     build-depends:
-        base ==4.6.*
+        base
     hs-source-dirs: src
     extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe
     ghc-options: -O2

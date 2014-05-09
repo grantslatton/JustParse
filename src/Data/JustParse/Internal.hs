@@ -22,7 +22,8 @@ module Data.JustParse.Internal (
     Parser (..),
     Result (..),
     isDone,
-    isPartial
+    isPartial,
+    toPartial
 ) where
 
 import Prelude hiding ( length )
@@ -99,6 +100,9 @@ isPartial :: Result s a -> Bool
 isPartial (Partial _) = True
 isPartial _ = False
 
+toPartial :: Parser s a -> [Result s a]
+toPartial (Parser p) = [Partial p]
+
 instance Functor (Result s) where
     fmap f (Partial p) = Partial $ map (fmap f) . p
     fmap f (Done a s) = Done (f a) s
@@ -118,7 +122,7 @@ finalize = extend Nothing
 -- to the 'leftover' portion, and for 'Partial' values, it runs the continuation,
 -- adding in any new 'Result' values to the output.
 extend :: (Eq s, Monoid s) => Maybe s -> [Result s a] -> [Result s a]
-extend s rs = rs >>= g --`prnt` (show (map i rs, map i (rs >>= g), h s))
+extend s rs = rs >>= g 
     where
         g (Partial p) = p s
         g (Done a s') = [Done a (f s' s)]

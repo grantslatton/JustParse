@@ -35,6 +35,7 @@ module Data.JustParse (
     C.extend,
     C.isDone,
     C.isPartial,
+    C.toPartial,
 
     -- * Generic Parsers
     C.assert,
