@@ -10,7 +10,7 @@ Portability : portable
 A simple and comprehensive Haskell parsing library.
 -} 
 
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 module Data.JustParse (
     -- * Overview
     -- $overview
@@ -24,83 +24,13 @@ module Data.JustParse (
 
     -- *** Recursive combinatorial parsing
     -- $quickstart3
-
-    -- * General Parsing
-    C.Stream(..),
-    C.Result(..),
-    C.Parser( parse ),
-    C.justParse,
-    C.runParser,
-    C.finalize,
-    C.extend,
-    C.isDone,
-    C.isPartial,
-    C.toPartial,
-
-    -- * Generic Parsers
-    C.assert,
-    C.test,
-    C.greedy,
-    C.option,
-    C.tryUntil,
-    C.satisfy,
-    C.mN,
-    C.mN',
-    C.many,
-    C.many',
-    C.many1,
-    C.many1',
-    C.manyN,
-    C.atLeast,
-    C.exactly,
-    C.sepBy,
-    C.sepBy',
-    C.sepBy1,
-    C.sepBy1',
-    C.eof,
-    C.oneOf,
-    C.noneOf,
-    C.token,
-    C.anyToken,
-    C.lookAhead,
-
-    -- * Char Parsers
-    C.char,
-    C.anyChar,
-    C.caseInsensitiveChar,
-    C.ascii,
-    C.latin1,
-    C.control,
-    C.space,
-    C.lower,
-    C.upper,
-    C.alpha,
-    C.alphaNum,
-    C.print,
-    C.digit,
-    C.octDigit,
-    C.hexDigit,
-
-    -- * String Parsers
-    C.string,
-    C.caseInsensitiveString,
-    C.eol,
-
-    -- * Regex Parsers
-    L.regex,
-    L.regex',
-    L.Match(..),
-
-    -- * Numeric Parsers
-    N.decFloat,
-    N.decInt,
-    N.hexInt
-
+    runParser,
+    parseOnly
 ) where
 
-import Data.JustParse.Language as L
-import Data.JustParse.Common as C
-import Data.JustParse.Numeric as N
+import Data.JustParse.Internal
+import Data.JustParse.Combinator
+import Data.JustParse.Prim
 
 -- $overview
 -- 
@@ -155,3 +85,21 @@ import Data.JustParse.Numeric as N
 --    vs \<- option [] (char \',\' >> csv)     \-\-Optionally parses a comma and a csv, returning the empty list upon failure
 --    return (v:vs)                         \-\-Concatenates and returns the full list
 -- @
+
+
+-- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
+-- including 'Partial' results.
+runParser :: Parser s a -> s -> [Result s a]
+runParser p = parse p . Just
+
+-- This runs the 'Parser' greedily over the input, 'finalize's all the 
+-- results, and returns the first successful result. If there are no 
+-- successful results, it returns Nothing. This is useful when you are
+-- parsing something that you know will have no 'Partial's and you just
+-- want an answer.
+parseOnly :: Stream s t => Parser s a -> s -> Maybe a
+parseOnly p s = 
+    case finalize (parse (greedy p) (Just s)) of
+        [] -> Nothing
+        (Done v _:_) -> Just v
+

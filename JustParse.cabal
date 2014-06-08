@@ -1,5 +1,5 @@
 name:                JustParse
-version:             1.0
+version:             2.0
 synopsis:            A simple and comprehensive Haskell parsing library
 description:         A simple and comprehensive Haskell parsing library
 homepage:            https://github.com/grantslatton/JustParse
@@ -16,11 +16,12 @@ library
     exposed-modules: Data.JustParse
     other-modules: 
         Data.JustParse.Internal, 
-        Data.JustParse.Language, 
-        Data.JustParse.Common,
-        Data.JustParse.Numeric
+        Data.JustParse.Combinator,
+        Data.JustParse.Numeric,
+        Data.JustParse.Language,
+        Data.JustParse.Char
     build-depends:
         base
     hs-source-dirs: src
-    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe
+    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts
     ghc-options: -O2

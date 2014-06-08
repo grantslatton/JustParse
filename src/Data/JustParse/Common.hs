@@ -10,7 +10,7 @@ Portability : portable
 Many common parsing needs in one place.
 -}
 
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 module Data.JustParse.Common (
 -- Parsing
     Stream(..),
@@ -18,7 +18,7 @@ module Data.JustParse.Common (
     Parser( parse ),
     finalize,
     extend,
-    justParse,
+    parseOnly,
     runParser,
     isDone,
     isPartial,
@@ -26,8 +26,6 @@ module Data.JustParse.Common (
 
 -- Primitive parsers
     satisfy,
-    mN,
-    mN',
 
 -- Derived Parsers
 
@@ -36,18 +34,16 @@ module Data.JustParse.Common (
     test,
     greedy,
     option,
-    tryUntil,
+    choice,
+    fork,
+    (<||>),
+    mN,
     many,
-    many',
+    many_,
     many1,
-    many1',
-    manyN,
-    atLeast,
-    exactly,
+    many1_,
     sepBy,
-    sepBy',
     sepBy1,
-    sepBy1',
     eof,
     oneOf,
     noneOf,
@@ -80,31 +76,20 @@ module Data.JustParse.Common (
 ) where
 
 import Prelude hiding ( print, length )
-import Data.JustParse.Internal ( Stream(..), Parser(..), Result(..), extend, finalize, isDone, isPartial, toPartial )
+import Data.JustParse.Internal ( 
+    Stream(..), Parser(..), Result(..), extend, finalize, isDone, 
+    isPartial, toPartial, streamAppend )
 import Data.Monoid ( mempty, Monoid, mappend )
 import Data.Maybe ( fromMaybe )
-import Data.List ( minimumBy )
-import Data.Char ( isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, isPrint, 
-                   isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, isPunctuation, 
-                   isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, isAsciiLower,
-                   toUpper, toLower )
+import Data.List ( minimumBy, foldl1' )
+import Data.Char ( 
+    isControl, isSpace, isLower, isUpper, isAlpha, isAlphaNum, isPrint, 
+    isDigit, isOctDigit, isHexDigit, isLetter, isMark, isNumber, 
+    isPunctuation, isSymbol, isSeparator, isAscii, isLatin1, isAsciiUpper, 
+    isAsciiLower, toUpper, toLower )
 import Data.Ord ( comparing )
 import Control.Monad ( void, (>=>), liftM, mzero, liftM2 )
-import Control.Applicative ( (<|>), optional, (<*) )
-
--- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
--- including 'Partial' and 'Fail' types.
-runParser :: Parser s a -> s -> [Result s a]
-runParser p = parse p . Just
-
--- | This is a \"newbie\" command that one should probably only use out of frustration.
--- It runs the 'Parser' greedily over the input, 'finalize's all the results, and returns
--- the first successful result. If there are no successful results, it returns Nothing.
-justParse :: Stream s t => Parser s a -> s -> Maybe a
-justParse p s = 
-    case finalize (parse (greedy p) (Just s)) of
-        [] -> Nothing
-        (Done v _:_) -> Just v
+import Control.Applicative ( (<|>), optional, (<*), many, some )
 
 -- | Parse a token that satisfies a predicate.
 satisfy :: Stream s t => (t -> Bool) -> Parser s t
@@ -113,36 +98,45 @@ satisfy f = Parser $ \s ->
         Nothing -> []
         Just s' -> case uncons s' of
             Nothing -> [Partial $ parse (satisfy f)]
-            Just (x, xs) -> 
-                if f x 
-                    then [Done x (Just xs)]
-                    else []
+            Just (x, xs) -> [Done x (Just xs) | f x]
 
--- | Parse from @m@ to @n@ occurences of a 'Parser'. Let @n@ be negative
--- if one wishes for no upper bound.
-mN :: Int -> Int -> Parser s a -> Parser s [a]
-mN _ 0 _ = Parser $ \s -> [Done [] s] 
-mN m n p = Parser $ \s -> 
-    if m == 0 
-        then Done [] s : (parse p s >>= g)
-        else             parse p s >>= g
-    where
-        m' = if m == 0 then 0 else m-1
-        g (Done a s) = parse (mN m' (n-1) p) s >>= h a
-        g (Partial p') = [Partial $ p' >=> g]
-        h a (Done as s) = [Done (a:as) s]
-        h a (Partial p') = [Partial $ p' >=> h a]
+--mN :: Int -> Int -> Parser s a -> Parser s [a]
+--mN _ 0 _ = Parser $ \s -> [Done [] s]
+--mN m n p = Parser $ \s -> 
 
-mN' :: Stream s t => Int -> Int -> Parser s a -> Parser s [a]
-mN' m n p = greedy (mN m n p)
+fork :: Parser s a -> Parser s a -> Parser s a
+fork a b = Parser $ \s -> parse a s ++ parse b s
 
-assert :: Bool -> Parser s ()
+infixr 1 <||>
+(<||>) :: Parser s a -> Parser s a -> Parser s a
+(<||>) = fork
+
+mN :: (Eq s, Monoid s) => Int -> Int -> Parser s a -> Parser s [a]
+mN _ 0 _ = Parser $ \s -> [Done [] s]
+mN 0 n p = liftM2 (:) p (mN 0 (n-1) p) <|> return []
+mN m n p = liftM2 (:) p (mN (m-1) (n-1) p)
+
+mN_ :: (Eq s, Monoid s) => Int -> Int -> Parser s a -> Parser s [a]
+mN_ _ 0 _ = Parser $ \s -> [Done [] s]
+mN_ 0 n p = liftM2 (:) p (mN 0 (n-1) p) <||> return []
+mN_ m n p = liftM2 (:) p (mN (m-1) (n-1) p)
+
+many_ :: Parser s a -> Parser s [a]
+many_ p = return [] <||> liftM2 (:) p (many_ p)
+
+many1 :: (Eq s, Monoid s) => Parser s a -> Parser s [a]
+many1 = some
+
+many1_ :: Parser s a -> Parser s [a]
+many1_ p = liftM2 (:) p (many_ p)
+
+assert :: (Eq s, Monoid s) => Bool -> Parser s ()
 assert True = return ()
 assert False = mzero
 
 -- | Return @True@ if the 'Parser' would succeed if one were to apply it,
 -- otherwise, @False@.
-test :: Monoid s => Parser s a -> Parser s Bool
+test :: (Eq s, Monoid s) => Parser s a -> Parser s Bool
 test p = 
     do 
         a <- optional (lookAhead p)
@@ -150,10 +144,15 @@ test p =
             Nothing -> return False
             _ -> return True
 
+choice :: (Eq s, Monoid s) => [Parser s a] -> Parser s a
+choice = foldl1' (<|>) 
+
+choice_ :: (Eq s, Monoid s) => [Parser s a] -> Parser s a
+choice_ = foldl1' (<||>)
+
 -- | Modifies a 'Parser' so that it will ony return the most consumptive
 -- succesful results. If there are no successful results, it will only
--- return the most consumptive failures. One can use @greedy@ to emulate
--- parsers from @Parsec@ or @attoparsec@.
+-- return the most consumptive failures. 
 greedy :: Stream s t => Parser s a -> Parser s a
 greedy (Parser p) = Parser $ \s -> g (p s) 
     where
@@ -165,7 +164,7 @@ greedy (Parser p) = Parser $ \s -> g (p s)
             | otherwise = [Partial $ \s -> g $ extend s xs] 
 
 -- | Attempts to apply a parser and returns a default value if it fails.
-option :: a -> Parser s a -> Parser s a
+option :: (Eq s, Monoid s) => a -> Parser s a -> Parser s a
 option v p = 
     do
         r <- optional p
@@ -173,60 +172,19 @@ option v p =
             Nothing -> return v
             Just v' -> return v'
 
-tryUntil :: (Eq s, Monoid s) => [Parser s a] -> Parser s a
-tryUntil [] = mzero
-tryUntil v@(Parser p:ps) = Parser $ \s ->
-    let
-        g [] = parse (tryUntil ps) s
-        g xs
-            | any isDone xs = xs
-            | otherwise = [Partial $ \s' -> parse (tryUntil v) (mappend s s')]
-    in
-        g (p s)
-                    
-            
-
--- | Parse any number of occurences of the 'Parser'. Equivalent to @'mN' 0 (-1)@.
-many :: Parser s a -> Parser s [a]
-many = mN 0 (-1) 
-
--- | @greedy . many@, useful for emulating Parsec or Attoparsec
-many' :: Stream s t => Parser s a -> Parser s [a]
-many' = greedy . many
-
--- | Parse one or more occurence of the 'Parser'. Equivalent to @'mN' 1 (-1)@.
-many1 :: Parser s a -> Parser s [a]
-many1 = mN 1 (-1) 
-
--- | @greedy . many1@, useful for emulating Parsec or Attoparsec
-many1' :: Stream s t => Parser s a -> Parser s [a]
-many1' = greedy . many1
-
--- | Parse at least @n@ occurences of the 'Parser'. Equivalent to @'mN' n (-1)@.
-manyN :: Int -> Parser s a -> Parser s [a]
-manyN n = mN n (-1) 
-
--- | Identical to 'manyN', just a more intuitive name.
-atLeast :: Int -> Parser s a -> Parser s [a]
-atLeast n = mN n (-1) 
-
--- | Parse exactly @n@ occurences of the 'Parser'. Equivalent to @'mN' n n@.
-exactly :: Int -> Parser s a -> Parser s [a]
-exactly n = mN n n 
-
 -- | @sepBy p s@ parsers any number of occurences of p separated by s
-sepBy :: Parser s a -> Parser s b -> Parser s [a]
+sepBy :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
 sepBy p s = sepBy1 p s <|> return []
 
-sepBy' :: Stream s t => Parser s a -> Parser s b -> Parser s [a]
-sepBy' p s = tryUntil [sepBy1' p s, return []]
+sepBy_ :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
+sepBy_ p s = sepBy1_ p s <||> return []
 
 -- | @sepBy p s@ parsers at least 1 occurence of p separated by s
-sepBy1 :: Parser s a -> Parser s b -> Parser s [a]
+sepBy1 :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
 sepBy1 p s = liftM2 (:) p (many (s >> p))
 
-sepBy1' :: Stream s t => Parser s a -> Parser s b -> Parser s [a]
-sepBy1' p s = liftM2 (:) p (many' (s >> p))
+sepBy1_ :: (Eq s, Monoid s) => Parser s a -> Parser s b -> Parser s [a]
+sepBy1_ p s = liftM2 (:) p (many_ (s >> p))
 
 -- | Only succeeds when supplied with @Nothing@.
 eof :: (Eq s, Monoid s) => Parser s ()
@@ -242,7 +200,7 @@ oneOf :: (Eq t, Stream s t) => [t] -> Parser s t
 oneOf ts = satisfy (`elem` ts)
 
 noneOf :: (Eq t, Stream s t) => [t] -> Parser s t
-noneOf ts = satisfy (not . (`elem` ts))
+noneOf ts = satisfy (`notElem` ts)
 
 -- | Parse a specific token.
 token :: (Eq t, Stream s t) => t -> Parser s t
@@ -256,10 +214,13 @@ anyToken = satisfy (const True)
 lookAhead :: Monoid s => Parser s a -> Parser s a
 lookAhead v@(Parser p) = Parser $ \s -> 
     let 
-        g (Done a _) = [Done a s]
-        g (Partial p') = [Partial $ \s' -> parse (lookAhead v) (mappend s s')]
+        g (Done a _) = Done a s
+        g (Partial p') = Partial $ \s' -> 
+            case s' of
+                Nothing -> finalize (p' s)
+                _ -> parse (lookAhead v) (streamAppend s s')
     in
-        p s >>= g 
+        map g (p s)
 
 -- | Parse a specic char.
 char :: Stream s Char => Char -> Parser s Char
@@ -271,7 +232,7 @@ anyChar = anyToken
 
 -- | Parse a specific char, ignoring case.
 caseInsensitiveChar :: Stream s Char => Char -> Parser s Char
-caseInsensitiveChar c = tryUntil [char (toUpper c), char (toLower c)]
+caseInsensitiveChar c = choice [char (toUpper c), char (toLower c)]
 
 ascii :: Stream s Char =>  Parser s Char
 ascii = satisfy isAscii
@@ -319,7 +280,7 @@ caseInsensitiveString = mapM caseInsensitiveChar
 
 -- | Parses until a newline, carriage return + newline, or newline + carriage return.
 eol :: Stream s Char => Parser s String
-eol = tryUntil [string "\r\n", string "\n\r", string "\n"]
+eol = choice [string "\r\n", string "\n\r", string "\n"]
 
 -- | Makes common types such as Strings into a Stream.
 instance (Eq t) => Stream [t] t where

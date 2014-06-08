@@ -13,17 +13,18 @@ Portability : portable
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 
 module Data.JustParse.Internal (
-    finalize,
-    extend,
     Stream (..),
     Parser (..),
     Result (..),
     isDone,
     isPartial,
-    toPartial
+    toPartial,
+    finalize,
+    extend,
+    streamAppend
 ) where
 
 import Prelude hiding ( length )
@@ -39,9 +40,10 @@ class (Eq s, Monoid s) => Stream s t | s -> t where
     -- returns the first token of the stream, followed by the remainder
     -- of the stream, wrapped in a @Just@.
     uncons :: Stream s t => s -> Maybe (t, s)
-    -- | The default @length@ implementation is O(n). If your stream provides
-    -- a more efficient method for determining the length, it is wise to
-    -- override this. The @length@ method is only used by the 'greedy' parser.
+    -- | The default @length@ implementation is O(n). If your stream 
+    -- provides a more efficient method for determining the length, it is 
+    -- wise to override this. The @length@ method is only used by the 
+    -- 'greedy' parser.
     length :: Stream s t => s -> Int
     length s = 
         case uncons s of
@@ -53,18 +55,18 @@ newtype Parser s a =
         parse :: Maybe s -> [Result s a]
     }
 
-instance Monoid (Parser s a) where
+instance (Eq s, Monoid s) => Monoid (Parser s a) where
     mempty = mzero
     mappend = mplus
 
 instance Functor (Parser s) where
-    fmap f (Parser p) = Parser $ \s -> map (fmap f) (p s)
+    fmap f (Parser p) = Parser $ map (fmap f) . p 
 
 instance Applicative (Parser s) where
     pure = return 
     (<*>) = ap
 
-instance Alternative (Parser s) where
+instance (Eq s, Monoid s) => Alternative (Parser s) where
     empty = mzero
     (<|>) = mplus
 
@@ -75,18 +77,40 @@ instance Monad (Parser s) where
             g (Done a s) = parse (f a) s 
             g (Partial p) = [Partial $ p >=> g] 
 
-instance MonadPlus (Parser s) where
+instance (Monoid s, Eq s) => MonadPlus (Parser s) where
     mzero = Parser $ const []
-    mplus (Parser p1) (Parser p2) = Parser (\s -> p1 s ++ p2 s)
+    mplus a b = Parser $ \s ->
+        let
+            g [] = parse b s
+            g xs 
+                | any isDone xs = xs
+                | otherwise = [Partial $ \s' -> 
+                    -- case needed for proper finalization
+                    case s' of
+                        -- if finalized
+                        Nothing -> 
+                            case finalize (parse a s) of
+                                -- if parser a doesn't yield, try b
+                                [] -> finalize (parse b s)
+                                -- otherwise give what a yielded
+                                r -> r
+                        -- if not finalized
+                        _ -> parse (mplus a b) (streamAppend s s')]
+
+        in
+            g (parse a s) 
 
 data Result s a 
-    -- | A @Partial@ wraps the same function as a Parser. Supply it with a @Just@
-    -- and it will continue parsing, or with a @Nothing@ and it will terminate.
+    -- | A @Partial@ wraps the same function as a Parser. Supply it with 
+    -- a @Just@
+    -- and it will continue parsing, or with a @Nothing@ and it will 
+    -- terminate.
     =
     Partial {
         continue    :: Maybe s -> [Result s a]
     } |
-    -- | A @Done@ contains the resultant @value@, and the @leftover@ stream, if any.
+    -- | A @Done@ contains the resultant @value@, and the @leftover@ 
+    -- stream, if any.
     Done {
         value       :: a,
         leftover    :: Maybe s
@@ -100,6 +124,7 @@ isPartial :: Result s a -> Bool
 isPartial (Partial _) = True
 isPartial _ = False
 
+-- | Lifts a parser into the result space
 toPartial :: Parser s a -> [Result s a]
 toPartial (Parser p) = [Partial p]
 
@@ -111,21 +136,23 @@ instance Show a => Show (Result s a) where
     show (Partial _) = "Partial"
     show (Done a _) = show a
 
--- | @finalize@ takes a list of results (presumably returned from a 'Parser' or 'Partial',
--- and supplies @Nothing@ to any remaining @Partial@ values, so that only 'Fail' and 'Done'
--- values remain.
+-- | @finalize@ takes a list of results (presumably returned from a 
+-- 'Parser' or 'Partial', and supplies @Nothing@ to any remaining @Partial@ 
+-- values, so that only 'Done' values remain.
 finalize :: (Eq s, Monoid s) => [Result s a] -> [Result s a]
 finalize = extend Nothing
 
--- | @extend@ takes a @Maybe s@ as input, and supplies the input to all values
--- in the 'Result' list. For 'Done' and 'Fail' values, it appends the @stream@ 
--- to the 'leftover' portion, and for 'Partial' values, it runs the continuation,
--- adding in any new 'Result' values to the output.
+-- | @extend@ takes a @Maybe s@ as input, and supplies the input to all 
+-- values  in the 'Result' list. For 'Done' values, it appends 
+-- the @Stream@  to the 'leftover' portion, and for 'Partial' values, it 
+-- runs the continuation, adding in any new 'Result' values to the output.
 extend :: (Eq s, Monoid s) => Maybe s -> [Result s a] -> [Result s a]
 extend s rs = rs >>= g 
     where
         g (Partial p) = p s
-        g (Done a s') = [Done a (f s' s)]
-        f Nothing _ = Nothing
-        f (Just s) Nothing = if s == mempty then Nothing else Just s
-        f s s' = mappend s s'
+        g (Done a s') = [Done a (streamAppend s' s)]
+
+streamAppend :: (Eq s, Monoid s) => Maybe s -> Maybe s -> Maybe s
+streamAppend Nothing _ = Nothing 
+streamAppend (Just s) Nothing = if s == mempty then Nothing else Just s 
+streamAppend s s' = mappend s s'
