@@ -54,10 +54,7 @@ eof :: (Eq s, Monoid s) => Parser s ()
 eof = Parser $ \s ->
     case s of
         Nothing -> [Done () s]
-        Just s' -> 
-            if s' == mempty
-                then [Partial $ parse eof]
-                else []
+        Just s' -> [Partial $ parse eof | s' == mempty]
 
 -- | Parse a token that is a member of the list of tokens.
 oneOf :: (Eq t, Stream s t) => [t] -> Parser s t

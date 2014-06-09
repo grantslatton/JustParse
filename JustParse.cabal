@@ -19,9 +19,10 @@ library
         Data.JustParse.Combinator,
         Data.JustParse.Numeric,
         Data.JustParse.Language,
-        Data.JustParse.Char
+        Data.JustParse.Char,
+        Data.JustParse.Prim
     build-depends:
         base
     hs-source-dirs: src
-    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts
+    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe
     ghc-options: -O2

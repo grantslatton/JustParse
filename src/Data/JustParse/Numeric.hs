@@ -4,15 +4,14 @@ module Data.JustParse.Numeric (
     hexInt
 ) where
 
+--{-# LANGUAGE Safe #-}
 import Data.JustParse.Prim
 import Data.JustParse.Combinator
 import Data.JustParse.Char
 import Control.Monad ( liftM, liftM2 )
 import Data.Char ( ord, digitToInt, toUpper, isDigit, isHexDigit )
 
-
-
--- | Reads many decimal digits and returns them as an @Int@
+-- | Reads many decimal digits and returns them as an @Int@.
 decInt :: Stream s Char => Parser s Int
 decInt = 
     do

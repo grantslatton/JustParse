@@ -24,18 +24,14 @@ import Data.JustParse.Char
 
 import Control.Monad ( liftM, mzero )
 import Data.Monoid ( Monoid, mconcat, mempty, mappend )
-import Data.Maybe ( isJust )
+import Data.Maybe ( isJust, fromMaybe )
 import Data.List ( intercalate )
 
 -- | @regex@ takes a regular expression in the form of a 'String' and,
 -- if the regex is valid, returns a 'Parser' that parses that regex.
--- If the regex is invalid, it returns a Parser that will only return
--- 'Fail' with an \"Invalid Regex\" message.
+-- If the regex is invalid, it returns a Parser that will always fail.
 regex :: Stream s Char => String -> Parser s Match
-regex s =
-    case parseOnly regular s of
-        Nothing -> mempty
-        Just v -> v
+regex = fromMaybe mempty . parseOnly regular
 
 -- | The same as 'regex', but only returns the full matched text.
 regex' :: Stream s Char => String -> Parser s String
@@ -69,13 +65,37 @@ regular :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 regular = liftM (liftM mconcat . sequence) (greedy $ many parser)
 
 parser :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
-parser = character <|> charClass <|> negCharClass <|> question <|> group <|> asterisk <|> plus <|> mn <|> period <|> pipe
+parser = choice [
+    character,
+    charClass,
+    negCharClass,
+    question,
+    group,
+    asterisk,
+    plus,
+    mn,
+    period,
+    pipe]
 
 parserNP :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
-parserNP = character <|> charClass <|> negCharClass <|> question <|> group <|> asterisk <|> plus <|> mn <|> period 
+parserNP = choice [
+    character,
+    charClass,
+    negCharClass,
+    question,
+    group,
+    asterisk,
+    plus,
+    mn,
+    period]
 
 restricted :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
-restricted = character <|> charClass <|> negCharClass <|> group <|> period
+restricted = choice [
+    character,
+    charClass,
+    negCharClass,
+    group,
+    period]
 
 unreserved :: Stream s Char => Parser s Char 
 unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?:<>|."
