@@ -36,11 +36,11 @@ import Data.List ( intercalate )
 -- | A @Stream@ instance has a stream of type @s@, made up of tokens of 
 -- type @t@, which must be determinable by the stream.
 class (Eq s, Monoid s) => Stream s t | s -> t where
-    -- | @uncons@ returns @Nothing@ if the @Stream@ is empty, otherwise it
+    -- | @uncons@ returns 'Nothing' if the @Stream@ is empty, otherwise it
     -- returns the first token of the stream, followed by the remainder
-    -- of the stream, wrapped in a @Just@.
+    -- of the stream, wrapped in a 'Just'.
     uncons :: Stream s t => s -> Maybe (t, s)
-    -- | The default @length@ implementation is O(n). If your stream 
+    -- | The default @length@ implementation is @O(n)@. If your stream 
     -- provides a more efficient method for determining the length, it is 
     -- wise to override this. The @length@ method is only used by the 
     -- 'greedy' parser.
@@ -102,8 +102,8 @@ instance (Monoid s, Eq s) => MonadPlus (Parser s) where
 
 data Result s a 
     -- | A @Partial@ wraps the same function as a Parser. Supply it with 
-    -- a @Just@
-    -- and it will continue parsing, or with a @Nothing@ and it will 
+    -- a 'Just'
+    -- and it will continue parsing, or with a 'Nothing' and it will 
     -- terminate.
     =
     Partial {
@@ -137,14 +137,14 @@ instance Show a => Show (Result s a) where
     show (Done a _) = show a
 
 -- | @finalize@ takes a list of results (presumably returned from a 
--- 'Parser' or 'Partial', and supplies @Nothing@ to any remaining @Partial@ 
+-- 'Parser' or 'Partial', and supplies 'Nothing' to any remaining 'Partial' 
 -- values, so that only 'Done' values remain.
 finalize :: (Eq s, Monoid s) => [Result s a] -> [Result s a]
 finalize = extend Nothing
 
--- | @extend@ takes a @Maybe s@ as input, and supplies the input to all 
+-- | @extend@ takes a @'Maybe' s@ as input, and supplies the input to all 
 -- values  in the 'Result' list. For 'Done' values, it appends 
--- the @Stream@  to the 'leftover' portion, and for 'Partial' values, it 
+-- the 'Stream'  to the 'leftover' portion, and for 'Partial' values, it 
 -- runs the continuation, adding in any new 'Result' values to the output.
 extend :: (Eq s, Monoid s) => Maybe s -> [Result s a] -> [Result s a]
 extend s rs = rs >>= g 

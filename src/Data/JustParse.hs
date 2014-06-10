@@ -25,7 +25,10 @@ module Data.JustParse (
     -- *** Recursive combinatorial parsing
     -- $quickstart3
     runParser,
-    parseOnly
+    parseOnly,
+    Result(..),
+    extend,
+    finalize
 ) where
 
 import Data.JustParse.Internal
@@ -38,13 +41,7 @@ import Data.JustParse.Prim
 -- 
 -- * Makes extensive use of combinators
 -- 
--- * Returns relatively verbose 'Fail'ure messages.
--- 
--- * Allows one to 'rename' a 'Parser'. 
--- 
--- * Allows for a parser to return a 'Partial' 'Result'
--- 
--- * Non-greedy parsing
+-- * Allows for a parser to return a 'Partial' result
 -- 
 -- * Returns a list of all possible parses
 -- 
@@ -58,8 +55,8 @@ import Data.JustParse.Prim
 --p = do                
 --    h \<- char \'h\'                   \-\-Parses the character \'h\'
 --    rest \<- string \"ello world\"     \-\-Parses the string \"ello world\"
---    exp \<- char \'!\'                 \-\-Parses the character \'!\'
---    return ([h]++rest++[exp])       \-\-Returns all of the above concatenated together
+--    ex \<- char \'!\'                  \-\-Parses the character \'!\'
+--    return ([h]++rest++[ex])        \-\-Returns all of the above concatenated together
 -- @
 
 -- $quickstart2
@@ -69,30 +66,31 @@ import Data.JustParse.Prim
 --
 -- @
 --p = do
---    first \<- string \"hello w\"         \-\-Parses the string \"hello w\"
+--    string \"hello w\"         \-\-Parses the string \"hello w\"
 --    os \<- many1 (char \'o\')            \-\-Applies the parser \"char \'o\'\" one or more times
---    second \<- string \"rld\"            \-\-Parses the string \"rld\"
+--    string \"rld\"            \-\-Parses the string \"rld\"
 --    return (length os)                \-\-Return the number of o\'s parsed
 -- @
 
 -- $quickstart3
 -- 
--- This parser will turn a string of comma separated values into a list of them
+-- This parser will turn a string of comma separated values into a list of 
+-- them. Note that we could use the 'sepBy' parser, but this demonstrates a 
+-- recursive parser.
 --
 -- @
 --csv = do  
---    v \<- greedy (many (noneOf \",\"))       \-\-Parses as many non-comma characters as possible
+--    v \<- many (noneOf \",\")       \-\-Parses as many non-comma characters as possible
 --    vs \<- option [] (char \',\' >> csv)     \-\-Optionally parses a comma and a csv, returning the empty list upon failure
 --    return (v:vs)                         \-\-Concatenates and returns the full list
 -- @
-
 
 -- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
 -- including 'Partial' results.
 runParser :: Parser s a -> s -> [Result s a]
 runParser p = parse p . Just
 
--- This runs the 'Parser' greedily over the input, 'finalize's all the 
+-- | This runs the 'Parser' greedily over the input, 'finalize's all the 
 -- results, and returns the first successful result. If there are no 
 -- successful results, it returns Nothing. This is useful when you are
 -- parsing something that you know will have no 'Partial's and you just
@@ -102,4 +100,3 @@ parseOnly p s =
     case finalize (parse (greedy p) (Just s)) of
         [] -> Nothing
         (Done v _:_) -> Just v
-
