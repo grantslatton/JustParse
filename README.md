@@ -51,7 +51,7 @@ another `Partial`), since it will resume parsing.
 For compatability reasons, the parsers `many`, `sepBy`, etc. operate as 
 they do in `Parsec` and `Attoparsec`. To use the ones that return all 
 possible parses, merely append an underscore, such as `many_` and `sepBy_`. 
-For general purpose parse branching, one may use the `fork` function, or 
+For general purpose parse branching, one may use the `branch` function, or 
 its infix name of `<||>`.
 
 ### Regex convenience
