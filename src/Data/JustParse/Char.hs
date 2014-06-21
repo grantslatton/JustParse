@@ -1,13 +1,13 @@
 {-|
 Module      : Data.JustParse.Common
-Description : Common Char Parsers
+Description : Common char parsers
 Copyright   : Copyright Waived
 License     : PublicDomain
 Maintainer  : grantslatton@gmail.com
 Stability   : experimental
 Portability : portable
 
-Many common parsing needs in one place.
+Several useful parsers for dealing with 'String's.
 -}
 
 --{-# LANGUAGE Safe #-}
@@ -35,7 +35,6 @@ module Data.JustParse.Char (
 import Prelude hiding (print)
 import Data.Char
 import Data.JustParse.Internal
-import Data.JustParse.Prim
 import Data.JustParse.Combinator
 
 -- | Parse a specic char.
@@ -110,7 +109,7 @@ caseInsensitiveString = mapM caseInsensitiveChar
 eol :: Stream s Char => Parser s String
 eol = choice [string "\r\n", string "\n\r", string "\n"]
 
--- | Makes common types such as Strings into a Stream.
-instance (Eq t) => Stream [t] t where
+-- | Makes common types such as 'String's into a Stream.
+instance Eq t => Stream [t] t where
     uncons [] = Nothing
     uncons (x:xs) = Just (x, xs)

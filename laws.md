@@ -30,11 +30,7 @@
         4. (\s -> [Done a s]) s                             -- Apply record
         5. [Done a s]                                       -- Beta-reduce
 
-        CASE 2: (p x) !! n ~ Fail m l
-        1. g (Fail m l)                                     -- Begin
-        1. [Fail m l]
-
-        CASE 3: (p x) !! n ~ Partial p
+        CASE 2: (p x) !! n ~ Partial p
         1. g (Partial p)                                    -- Begin
         2. [Partial $ p >=> g]                              -- Definition of g
         3. Induction 

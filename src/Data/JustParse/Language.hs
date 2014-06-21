@@ -1,25 +1,28 @@
 {-|
 Module      : Data.JustParse.Language
-Description : Regular Expressions and Grammars in JustParse
+Description : Regular expressions
 Copyright   : Copyright Waived
 License     : PublicDomain
 Maintainer  : grantslatton@gmail.com
 Stability   : experimental
 Portability : portable
 
-Takes ideas from the field of Formal Languages and imports them into the parsing library.
+Allows for conversion from a regular expression and a 'Parser'.
 -}
 
 {-# LANGUAGE Safe #-}
 module Data.JustParse.Language (
     Match (..),
     regex,
-    regex'
+    regex_,
+    regex',
+    regex_'
 ) where
 
 import Data.JustParse
-import Data.JustParse.Prim
+import Data.JustParse.Internal
 import Data.JustParse.Combinator
+import Data.JustParse.Numeric
 import Data.JustParse.Char
 
 import Control.Monad ( liftM, mzero )
@@ -30,12 +33,22 @@ import Data.List ( intercalate )
 -- | @regex@ takes a regular expression in the form of a 'String' and,
 -- if the regex is valid, returns a 'Parser' that parses that regex.
 -- If the regex is invalid, it returns a Parser that will always fail.
+-- The returned parser is greedy.
 regex :: Stream s Char => String -> Parser s Match
-regex = fromMaybe mempty . parseOnly regular
+regex = greedy . fromMaybe mzero . parseOnly regular
+
+-- | Like 'regex', but returns a branching (non-greedy) parser.
+regex_ :: Stream s Char => String -> Parser s Match
+regex_ = fromMaybe mzero . parseOnly regular
 
 -- | The same as 'regex', but only returns the full matched text.
 regex' :: Stream s Char => String -> Parser s String
 regex' = liftM matched . regex 
+
+-- | The same as 'regex_', but only returns the full matched text.
+regex_' :: Stream s Char => String -> Parser s String
+regex_' = liftM matched . regex_
+
 
 -- | The result of a 'regex'
 data Match = 
@@ -62,32 +75,36 @@ instance Monoid Match where
         }
 
 regular :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
-regular = liftM (liftM mconcat . sequence) (greedy $ many parser)
+regular = liftM (liftM mconcat . sequence) (many parser)
 
 parser :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 parser = choice [
+    asterisk,
+    mn,
+    pipe,
+    plus,
+    question,
+    group,
     character,
     charClass,
     negCharClass,
-    question,
-    group,
-    asterisk,
-    plus,
-    mn,
-    period,
-    pipe]
+    period
+    ]
 
 parserNP :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 parserNP = choice [
+    asterisk,
+    mn,
+    plus,
+    question,
+    group,
     character,
     charClass,
     negCharClass,
-    question,
-    group,
-    asterisk,
-    plus,
-    mn,
-    period]
+    period
+    ]
+
+
 
 restricted :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 restricted = choice [
@@ -95,10 +112,11 @@ restricted = choice [
     charClass,
     negCharClass,
     group,
-    period]
+    period
+    ]
 
 unreserved :: Stream s Char => Parser s Char 
-unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?:<>|."
+unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?|."
 
 character :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 character = 
@@ -112,7 +130,7 @@ charClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 charClass = 
     do
         char '['
-        c <- greedy (many1 unreserved)
+        c <- many1 unreserved
         char ']'
         return $ do
             c' <- oneOf c
@@ -122,7 +140,7 @@ negCharClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 negCharClass = 
     do
         string "[^"
-        c <- greedy (many1 unreserved)
+        c <- many1 unreserved
         char ']'
         return $ do
             c' <- noneOf c
@@ -142,12 +160,12 @@ question =
     do
         p <- restricted
         char '?'
-        return $ liftM mconcat (mN 0 1 p)
+        return $ liftM mconcat (mN_ 0 1 p)
 
 group :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 group = 
     do
-        string "("
+        char '('
         p <- regular
         char ')'
         return $ do
@@ -159,25 +177,25 @@ asterisk =
     do
         p <- restricted
         char '*'
-        return $ liftM mconcat (many p)
+        return $ liftM mconcat (many_ p)
 
 plus :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 plus = 
     do
         p <- restricted
         char '+'
-        return $ liftM mconcat (many1 p)
+        return $ liftM mconcat (many1_ p)
 
 mn :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 mn = 
     do
         p <- restricted
         char '{'
-        l <- optional (many1 digit)
+        l <- option 0 decInt
         char ','
-        r <- optional (many1 digit)
+        r <- option (-1) decInt
         char '}'
-        return $ liftM mconcat (mN (maybe 0 read l) (maybe (-1) read r) p)
+        return $ liftM mconcat (mN_ l r p)
 
 pipe :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 pipe = 
@@ -185,4 +203,4 @@ pipe =
         p <- parserNP
         char '|'
         p' <- parser
-        return $ p <|> p'
+        return $ p <||> p'

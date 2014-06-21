@@ -1,13 +1,11 @@
 {-|
 Module      : Data.JustParse
-Description : The one-stop import for the library
+Description : Parsing functions and types
 Copyright   : Copyright Waived
 License     : PublicDomain
 Maintainer  : grantslatton@gmail.com
 Stability   : experimental
 Portability : portable
-
-A simple and comprehensive Haskell parsing library.
 -} 
 
 --{-# LANGUAGE Safe #-}
@@ -26,14 +24,15 @@ module Data.JustParse (
     -- $quickstart3
     runParser,
     parseOnly,
-    Result(..),
     extend,
-    finalize
+    finalize,
+    Parser,
+    Result(..),
+    Stream(..)
 ) where
 
 import Data.JustParse.Internal
 import Data.JustParse.Combinator
-import Data.JustParse.Prim
 
 -- $overview
 -- 
@@ -67,9 +66,9 @@ import Data.JustParse.Prim
 -- @
 --p = do
 --    string \"hello w\"         \-\-Parses the string \"hello w\"
---    os \<- many1 (char \'o\')            \-\-Applies the parser \"char \'o\'\" one or more times
---    string \"rld\"            \-\-Parses the string \"rld\"
---    return (length os)                \-\-Return the number of o\'s parsed
+--    os \<- many1 (char \'o\')   \-\-Applies the parser \"char \'o\'\" one or more times
+--    string \"rld\"             \-\-Parses the string \"rld\"
+--    return (length os)       \-\-Return the number of o\'s parsed
 -- @
 
 -- $quickstart3
@@ -80,7 +79,7 @@ import Data.JustParse.Prim
 --
 -- @
 --csv = do  
---    v \<- many (noneOf \",\")       \-\-Parses as many non-comma characters as possible
+--    v \<- many (noneOf \",\")                \-\-Parses as many non-comma characters as possible
 --    vs \<- option [] (char \',\' >> csv)     \-\-Optionally parses a comma and a csv, returning the empty list upon failure
 --    return (v:vs)                         \-\-Concatenates and returns the full list
 -- @
@@ -92,7 +91,7 @@ runParser p = parse p . Just
 
 -- | This runs the 'Parser' greedily over the input, 'finalize's all the 
 -- results, and returns the first successful result. If there are no 
--- successful results, it returns Nothing. This is useful when you are
+-- successful results, it returns 'Nothing'. This is useful when you are
 -- parsing something that you know will have no 'Partial's and you just
 -- want an answer.
 parseOnly :: Stream s t => Parser s a -> s -> Maybe a

@@ -18,12 +18,11 @@ library
         Data.JustParse.Combinator,
         Data.JustParse.Numeric,
         Data.JustParse.Language,
-        Data.JustParse.Char,
-        Data.JustParse.Prim
+        Data.JustParse.Char
     other-modules: 
         Data.JustParse.Internal
     build-depends:
         base
     hs-source-dirs: src
-    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe
-    ghc-options: -O2
+    extensions: MultiParamTypeClasses, Rank2Types, FlexibleInstances, FlexibleContexts, Safe, TupleSections, UndecidableInstances
+    ghc-options: -O2 -Wall

@@ -11,6 +11,7 @@ Portability : portable
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
 --{-# LANGUAGE Safe #-}
@@ -34,7 +35,8 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Data.List ( intercalate )
 
 -- | A @Stream@ instance has a stream of type @s@, made up of tokens of 
--- type @t@, which must be determinable by the stream.
+-- type @t@, which must be determinable by the stream. A minimal complete
+-- definition only needs to define @uncons@.
 class (Eq s, Monoid s) => Stream s t | s -> t where
     -- | @uncons@ returns 'Nothing' if the @Stream@ is empty, otherwise it
     -- returns the first token of the stream, followed by the remainder
@@ -55,7 +57,7 @@ newtype Parser s a =
         parse :: Maybe s -> [Result s a]
     }
 
-instance (Eq s, Monoid s) => Monoid (Parser s a) where
+instance Stream s t => Monoid (Parser s a) where
     mempty = mzero
     mappend = mplus
 
@@ -66,7 +68,7 @@ instance Applicative (Parser s) where
     pure = return 
     (<*>) = ap
 
-instance (Eq s, Monoid s) => Alternative (Parser s) where
+instance Stream s t => Alternative (Parser s) where
     empty = mzero
     (<|>) = mplus
 
@@ -77,7 +79,7 @@ instance Monad (Parser s) where
             g (Done a s) = parse (f a) s 
             g (Partial p) = [Partial $ p >=> g] 
 
-instance (Monoid s, Eq s) => MonadPlus (Parser s) where
+instance Stream s t => MonadPlus (Parser s) where
     mzero = Parser $ const []
     mplus a b = Parser $ \s ->
         let

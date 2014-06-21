@@ -1,12 +1,27 @@
+{-|
+Module      : Data.JustParse.Numeric
+Description : Numeric parsing
+Copyright   : Copyright Waived
+License     : PublicDomain
+Maintainer  : grantslatton@gmail.com
+Stability   : experimental
+Portability : portable
+
+Parsers for dealing with signed and unsigned 'Int's and 'Float's.
+-}
+
 module Data.JustParse.Numeric (
     decFloat,
+    decFloat_,
     decInt,
-    hexInt
+    decInt_,
+    hexInt,
+    hexInt_
 ) where
 
 --{-# LANGUAGE Safe #-}
-import Data.JustParse.Prim
 import Data.JustParse.Combinator
+import Data.JustParse.Internal
 import Data.JustParse.Char
 import Control.Monad ( liftM, liftM2 )
 import Data.Char ( ord, digitToInt, toUpper, isDigit, isHexDigit )
@@ -21,7 +36,18 @@ decInt =
             Just '-' -> return (-num)
             _ -> return num
 
--- | Parse a float. If a decimal point is present, it must have at least 1 digit before and after the decimal point.
+-- | Branching version of decInt.
+decInt_ :: Stream s Char => Parser s Int
+decInt_ = 
+    do
+        sign <- optional (oneOf "-+")
+        num <- liftM read (many1_ digit)
+        case sign of
+            Just '-' -> return (-num)
+            _ -> return num
+
+-- | Parse a float. If a decimal point is present, it must have at 
+-- least one digit before and after the decimal point.
 decFloat :: Stream s Char => Parser s Float
 decFloat = 
     do
@@ -32,7 +58,19 @@ decFloat =
             Just '-' -> return (-(read (whole ++ fractional)))
             _ -> return (read (whole ++ fractional))
 
--- | Reads many hexidecimal digits and returns them as an @Int@
+-- | Branching version of decFloat.
+decFloat_ :: Stream s Char => Parser s Float
+decFloat_ = 
+    do
+        sign <- optional (oneOf "-+")
+        whole <- many1_ digit
+        fractional <- option_ ".0" (liftM2 (:) (char '.') (many1_ digit))
+        case sign of
+            Just '-' -> return (-(read (whole ++ fractional)))
+            _ -> return (read (whole ++ fractional))
+
+
+-- | Reads many hexidecimal digits and returns them as an @Int@.
 hexInt :: Stream s Char => Parser s Int
 hexInt = 
     do
@@ -43,4 +81,21 @@ hexInt =
             _ -> return num
     where
         f [] = 0
-        f (x:xs) = if isDigit x then digitToInt x + 16 * f xs else ord (toUpper x) - ord 'A' + 16 * f xs
+        f (x:xs) 
+            | isDigit x = digitToInt x + 16 * f xs 
+            | otherwise = ord (toUpper x) - ord 'A' + 16 * f xs
+
+-- | Branching versino of 'hexInt'.
+hexInt_ :: Stream s Char => Parser s Int
+hexInt_ = 
+    do
+        sign <- optional (oneOf "-+")
+        num <- liftM (f . reverse) (many1_ hexDigit)
+        case sign of
+            Just '-' -> return (-num)
+            _ -> return num
+    where
+        f [] = 0
+        f (x:xs) 
+            | isDigit x = digitToInt x + 16 * f xs 
+            | otherwise = ord (toUpper x) - ord 'A' + 16 * f xs

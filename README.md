@@ -21,7 +21,7 @@ A simple and comprehensive Haskell parsing library
 The last item in that list is the most important. In both `Parsec` and 
 `Attoparsec`, parsers such as "many" are greedy. That is, they will consume 
 as much input as possible. This is makes writing a parser equivalent to the 
-regular expression `a[ab]\*a` a bit tricky. We would be tempted to write:
+regular expression `a[ab]*a` a bit tricky. We would be tempted to write:
 
     p = do
         a <- char 'a'
