@@ -14,7 +14,7 @@ Portability : portable
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 
 module Data.JustParse.Internal (
     Stream (..),
@@ -59,28 +59,38 @@ newtype Parser s a =
 
 instance Stream s t => Monoid (Parser s a) where
     mempty = mzero
+    {-# INLINE mempty #-}
     mappend = mplus
+    {-# INLINE mappend #-}
 
 instance Functor (Parser s) where
     fmap f (Parser p) = Parser $ map (fmap f) . p 
+    {-# INLINE fmap #-}
 
 instance Applicative (Parser s) where
     pure = return 
+    {-# INLINE pure #-}
     (<*>) = ap
+    {-# INLINE (<*>) #-}
 
 instance Stream s t => Alternative (Parser s) where
     empty = mzero
+    {-# INLINE empty #-}
     (<|>) = mplus
+    {-# INLINE (<|>) #-}
 
 instance Monad (Parser s) where
     return v = Parser $ \s -> [Done v s] 
+    {-# INLINE return #-}
     (Parser p) >>= f = Parser $ p >=> g
         where
             g (Done a s) = parse (f a) s 
             g (Partial p) = [Partial $ p >=> g] 
+    {-# INLINE (>>=) #-}
 
 instance Stream s t => MonadPlus (Parser s) where
     mzero = Parser $ const []
+    {-# INLINE mzero #-}
     mplus a b = Parser $ \s ->
         let
             g [] = parse b s
@@ -101,6 +111,7 @@ instance Stream s t => MonadPlus (Parser s) where
 
         in
             g (parse a s) 
+    {-# INLINE mplus #-}
 
 data Result s a 
     -- | A @Partial@ wraps the same function as a Parser. Supply it with 
@@ -121,28 +132,35 @@ data Result s a
 isDone :: Result s a -> Bool
 isDone (Done _ _) = True
 isDone _ = False
+{-# INLINE isDone #-}
 
 isPartial :: Result s a -> Bool
 isPartial (Partial _) = True
 isPartial _ = False
+{-# INLINE isPartial #-}
 
 -- | Lifts a parser into the result space
 toPartial :: Parser s a -> [Result s a]
 toPartial (Parser p) = [Partial p]
+{-# INLINE toPartial #-}
 
 instance Functor (Result s) where
     fmap f (Partial p) = Partial $ map (fmap f) . p
     fmap f (Done a s) = Done (f a) s
+    {-# INLINE fmap #-}
+
 
 instance Show a => Show (Result s a) where
     show (Partial _) = "Partial"
     show (Done a _) = show a
+    {-# INLINE show #-}
 
 -- | @finalize@ takes a list of results (presumably returned from a 
 -- 'Parser' or 'Partial', and supplies 'Nothing' to any remaining 'Partial' 
 -- values, so that only 'Done' values remain.
 finalize :: (Eq s, Monoid s) => [Result s a] -> [Result s a]
 finalize = extend Nothing
+{-# INLINE finalize #-}
 
 -- | @extend@ takes a @'Maybe' s@ as input, and supplies the input to all 
 -- values  in the 'Result' list. For 'Done' values, it appends 
@@ -153,8 +171,10 @@ extend s rs = rs >>= g
     where
         g (Partial p) = p s
         g (Done a s') = [Done a (streamAppend s' s)]
+{-# INLINE extend #-}
 
 streamAppend :: (Eq s, Monoid s) => Maybe s -> Maybe s -> Maybe s
 streamAppend Nothing _ = Nothing 
 streamAppend (Just s) Nothing = if s == mempty then Nothing else Just s 
 streamAppend s s' = mappend s s'
+{-# INLINE streamAppend #-}

@@ -8,7 +8,7 @@ Stability   : experimental
 Portability : portable
 -} 
 
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 module Data.JustParse (
     -- * Overview
     -- $overview

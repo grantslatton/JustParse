@@ -36,18 +36,22 @@ import Data.List ( intercalate )
 -- The returned parser is greedy.
 regex :: Stream s Char => String -> Parser s Match
 regex = greedy . fromMaybe mzero . parseOnly regular
+{-# INLINE regex #-}
 
 -- | Like 'regex', but returns a branching (non-greedy) parser.
 regex_ :: Stream s Char => String -> Parser s Match
 regex_ = fromMaybe mzero . parseOnly regular
+{-# INLINE regex_ #-}
 
 -- | The same as 'regex', but only returns the full matched text.
 regex' :: Stream s Char => String -> Parser s String
 regex' = liftM matched . regex 
+{-# INLINE regex' #-}
 
 -- | The same as 'regex_', but only returns the full matched text.
 regex_' :: Stream s Char => String -> Parser s String
 regex_' = liftM matched . regex_
+{-# INLINE regex_' #-}
 
 
 -- | The result of a 'regex'
@@ -76,6 +80,7 @@ instance Monoid Match where
 
 regular :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 regular = liftM (liftM mconcat . sequence) (many parser)
+{-# INLINE regular #-}
 
 parser :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 parser = choice [
@@ -90,6 +95,7 @@ parser = choice [
     negCharClass,
     period
     ]
+{-# INLINE parser #-}
 
 parserNP :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 parserNP = choice [
@@ -103,6 +109,7 @@ parserNP = choice [
     negCharClass,
     period
     ]
+{-# INLINE parserNP #-}
 
 
 
@@ -114,9 +121,11 @@ restricted = choice [
     group,
     period
     ]
+{-# INLINE restricted #-}
 
 unreserved :: Stream s Char => Parser s Char 
 unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?|."
+{-# INLINE unreserved #-}
 
 character :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 character = 
@@ -125,6 +134,7 @@ character =
         return $ do
             c' <- char c
             return $ Match [c] []
+{-# INLINE character #-}
 
 charClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 charClass = 
@@ -135,6 +145,7 @@ charClass =
         return $ do
             c' <- oneOf c
             return $ Match [c'] []
+{-# INLINE charClass #-}
 
 negCharClass :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 negCharClass = 
@@ -145,6 +156,7 @@ negCharClass =
         return $ do
             c' <- noneOf c
             return $ Match [c'] []
+{-# INLINE negCharClass #-}
 
 period :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 period = 
@@ -153,6 +165,7 @@ period =
         return $ do
             c <- noneOf "\n\r"
             return $ Match [c] []
+{-# INLINE period #-}
 
 
 question :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
@@ -161,6 +174,7 @@ question =
         p <- restricted
         char '?'
         return $ liftM mconcat (mN_ 0 1 p)
+{-# INLINE question #-}
 
 group :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 group = 
@@ -171,6 +185,7 @@ group =
         return $ do
             r <- p
             return $ r { groups = [r] } 
+{-# INLINE group #-}
 
 asterisk :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 asterisk = 
@@ -178,6 +193,7 @@ asterisk =
         p <- restricted
         char '*'
         return $ liftM mconcat (many_ p)
+{-# INLINE asterisk #-}
 
 plus :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 plus = 
@@ -185,6 +201,7 @@ plus =
         p <- restricted
         char '+'
         return $ liftM mconcat (many1_ p)
+{-# INLINE plus #-}
 
 mn :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 mn = 
@@ -196,6 +213,7 @@ mn =
         r <- option (-1) decInt
         char '}'
         return $ liftM mconcat (mN_ l r p)
+{-# INLINE mn #-}
 
 pipe :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
 pipe = 
@@ -204,3 +222,4 @@ pipe =
         char '|'
         p' <- parser
         return $ p <||> p'
+{-# INLINE pipe #-}
