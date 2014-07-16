@@ -10,7 +10,7 @@ Portability : portable
 The bread and butter of combinatory parsing.
 -}
 
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 module Data.JustParse.Combinator (
     -- * Utility Parsers
     assert,
@@ -98,6 +98,10 @@ import Data.List ( minimumBy, foldl1', foldl' )
 import Data.Ord ( comparing )
 import qualified Control.Monad as M
 import qualified Control.Applicative as A
+
+import Debug.Trace
+import Unsafe.Coerce
+prnt = flip trace
 
 -- | Parse a token that satisfies a predicate.
 satisfy :: Stream s t => (t -> Bool) -> Parser s t
@@ -353,10 +357,10 @@ lookAhead v@(Parser p) = Parser $ \s ->
         g (Done a _) = Done a s
         g (Partial p') = Partial $ \s' -> 
             case s' of
-                Nothing -> finalize (p' s)
-                _ -> parse (lookAhead v) (streamAppend s s')
+                Nothing -> p' Nothing
+                Just s'' -> parse (lookAhead v) (streamAppend s s') 
     in
-        map g (p s)
+        map g (p s) 
 {-# INLINE lookAhead #-}
 
 -- | @count n p@ parses exactly @n@ occurences of @p@.

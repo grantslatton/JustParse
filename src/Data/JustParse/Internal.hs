@@ -14,7 +14,7 @@ Portability : portable
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE Safe #-}
+--{-# LANGUAGE Safe #-}
 
 module Data.JustParse.Internal (
     Stream (..),
