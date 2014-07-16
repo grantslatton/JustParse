@@ -25,7 +25,7 @@ module Data.JustParse.Numeric (
     decFloat_,
 ) where
 
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 import Data.JustParse.Combinator
 import Data.JustParse.Internal
 import qualified Data.JustParse.Char as C

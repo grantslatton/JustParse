@@ -10,7 +10,7 @@ Portability : portable
 Several useful parsers for dealing with 'String's.
 -}
 
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 module Data.JustParse.Char (
     char,
     anyChar,

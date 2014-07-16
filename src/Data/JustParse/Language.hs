@@ -10,7 +10,7 @@ Portability : portable
 Allows for conversion from a regular expression and a 'Parser'.
 -}
 
---{-# LANGUAGE Safe #-}
+{-# LANGUAGE Safe #-}
 module Data.JustParse.Language (
     Match (..),
     regex,
