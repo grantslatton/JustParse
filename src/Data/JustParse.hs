@@ -87,7 +87,7 @@ import Data.JustParse.Combinator
 -- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
 -- including 'Partial' results.
 runParser :: Parser s a -> s -> [Result s a]
-runParser p = parse p . Just
+runParser p = parse p . Open
 
 -- | This runs the 'Parser' greedily over the input, 'finalize's all the 
 -- results, and returns the first successful result. If there are no 
@@ -96,6 +96,6 @@ runParser p = parse p . Just
 -- want an answer.
 parseOnly :: Stream s t => Parser s a -> s -> Maybe a
 parseOnly p s = 
-    case finalize (parse (greedy p) (Just s)) of
+    case finalize (parse (greedy p) (Open s)) of
         [] -> Nothing
         (Done v _:_) -> Just v

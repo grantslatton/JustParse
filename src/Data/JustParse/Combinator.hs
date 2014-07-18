@@ -90,7 +90,7 @@ module Data.JustParse.Combinator (
 
 import Prelude hiding ( print, length, takeWhile )
 import Data.JustParse.Internal ( 
-    Stream(..), Parser(..), Result(..), extend, finalize, isDone, 
+    Stream(..), Parser(..), Result(..), InternalStream(..), extend, extend', finalize, isDone, 
     isPartial, toPartial, streamAppend )
 import Data.Monoid ( mempty, Monoid, mappend )
 import Data.Maybe ( fromMaybe )
@@ -103,10 +103,13 @@ import qualified Control.Applicative as A
 satisfy :: Stream s t => (t -> Bool) -> Parser s t
 satisfy f = Parser $ \s -> 
     case s of
-        Nothing -> []
-        Just s' -> case uncons s' of
+        Null -> []
+        Open s' -> case uncons s' of
             Nothing -> [Partial $ parse (satisfy f)]
-            Just (x, xs) -> [Done x (Just xs) | f x]
+            Just (x, xs) -> [Done x (Open xs) | f x]
+        Closed s' -> case uncons s' of
+            Nothing -> []
+            Just (x, xs) -> [Done x (Closed xs) | f x]
 {-# INLINE satisfy #-}
 
 -- | A parser that succeeds on 'True' and fails on 'False'. 
@@ -287,12 +290,13 @@ select_ (p:ps) = M.liftM (0,) p <||> M.liftM (\(x,y) -> (x+1,y)) (select_ ps)
 greedy :: Stream s t => Parser s a -> Parser s a
 greedy (Parser p) = Parser $ \s -> g (p s) 
     where
-        f Nothing = 0
-        f (Just s) = length s
+        f Null = 0
+        f (Open s) = length s
+        f (Closed s) = length s
         g [] = []
         g xs 
             | all isDone xs = [minimumBy (comparing (f . leftover)) xs]
-            | otherwise = [Partial $ \s -> g $ extend s xs] 
+            | otherwise = [Partial $ \s -> g $ extend' s xs] 
 {-# INLINE greedy #-}
 
 -- | Attempts to apply a parser and returns a default value if it fails.
@@ -353,8 +357,8 @@ lookAhead v@(Parser p) = Parser $ \s ->
         g (Done a _) = Done a s
         g (Partial p') = Partial $ \s' -> 
             case s' of
-                Nothing -> p' Nothing
-                Just s'' -> parse (lookAhead v) (streamAppend s s') 
+                Null -> map (\(Done a _) -> Done a (streamAppend s Null)) (p' Null)
+                _ -> parse (lookAhead v) (streamAppend s s') 
     in
         map g (p s) 
 {-# INLINE lookAhead #-}

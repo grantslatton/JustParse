@@ -9,7 +9,6 @@ Portability : portable
 -}
 
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -20,11 +19,13 @@ module Data.JustParse.Internal (
     Stream (..),
     Parser (..),
     Result (..),
+    InternalStream (..),
     isDone,
     isPartial,
     toPartial,
     finalize,
     extend,
+    extend',
     streamAppend
 ) where
 
@@ -52,9 +53,14 @@ class (Eq s, Monoid s) => Stream s t | s -> t where
             Nothing -> 0
             Just (x, xs) -> 1 + length xs
 
+data InternalStream s = 
+    Open s |
+    Closed s |
+    Null
+
 newtype Parser s a = 
     Parser { 
-        parse :: Maybe s -> [Result s a]
+        parse :: InternalStream s -> [Result s a]
     }
 
 instance Stream s t => Monoid (Parser s a) where
@@ -100,7 +106,7 @@ instance Stream s t => MonadPlus (Parser s) where
                     -- case needed for proper finalization
                     case s' of
                         -- if finalized
-                        Nothing -> 
+                        Null -> 
                             case finalize (parse a s) of
                                 -- if parser a doesn't yield, try b
                                 [] -> finalize (parse b s)
@@ -114,19 +120,17 @@ instance Stream s t => MonadPlus (Parser s) where
     {-# INLINE mplus #-}
 
 data Result s a 
-    -- | A @Partial@ wraps the same function as a Parser. Supply it with 
-    -- a 'Just'
-    -- and it will continue parsing, or with a 'Nothing' and it will 
-    -- terminate.
+    -- | A @Partial@ wraps the same function as a Parser. Extend it
+    -- with 'extend' or conclude parsing with 'finalize'.
     =
     Partial {
-        continue    :: Maybe s -> [Result s a]
+        continue    :: InternalStream s -> [Result s a]
     } |
     -- | A @Done@ contains the resultant @value@, and the @leftover@ 
     -- stream, if any.
     Done {
         value       :: a,
-        leftover    :: Maybe s
+        leftover    :: InternalStream s
     } 
 
 isDone :: Result s a -> Bool
@@ -156,25 +160,32 @@ instance Show a => Show (Result s a) where
     {-# INLINE show #-}
 
 -- | @finalize@ takes a list of results (presumably returned from a 
--- 'Parser' or 'Partial', and supplies 'Nothing' to any remaining 'Partial' 
--- values, so that only 'Done' values remain.
-finalize :: (Eq s, Monoid s) => [Result s a] -> [Result s a]
-finalize = extend Nothing
+-- 'Parser' or 'Partial', concludes all parsing, leaving only 'Done's.
+finalize :: Stream s t => [Result s a] -> [Result s a]
+finalize rs = rs >>= g 
+    where
+        g (Partial p) = p Null
+        g (Done a s') = [Done a (streamAppend s' Null)]
 {-# INLINE finalize #-}
 
--- | @extend@ takes a @'Maybe' s@ as input, and supplies the input to all 
--- values  in the 'Result' list. For 'Done' values, it appends 
--- the 'Stream'  to the 'leftover' portion, and for 'Partial' values, it 
--- runs the continuation, adding in any new 'Result' values to the output.
-extend :: (Eq s, Monoid s) => Maybe s -> [Result s a] -> [Result s a]
-extend s rs = rs >>= g 
+-- | @extend@ takes an @s@ as input, and supplies the input to all 
+-- values  in the 'Result' list. 
+extend :: Stream s t => s -> [Result s a] -> [Result s a]
+extend s rs = extend' (Open s) rs
+{-# INLINE extend #-}
+
+extend' :: Stream s t => InternalStream s -> [Result s a] -> [Result s a]
+extend' s rs = rs >>= g 
     where
         g (Partial p) = p s
         g (Done a s') = [Done a (streamAppend s' s)]
-{-# INLINE extend #-}
+{-# INLINE extend' #-}
 
-streamAppend :: (Eq s, Monoid s) => Maybe s -> Maybe s -> Maybe s
-streamAppend Nothing _ = Nothing 
-streamAppend (Just s) Nothing = if s == mempty then Nothing else Just s 
-streamAppend s s' = mappend s s'
+
+
+streamAppend :: Stream s t => InternalStream s -> InternalStream s -> InternalStream s
+streamAppend Null _ = Null
+streamAppend (Open s) Null = Closed s
+streamAppend (Open s) (Closed s') = Closed (mappend s s')
+streamAppend (Closed s) _ = Closed s
 {-# INLINE streamAppend #-}
