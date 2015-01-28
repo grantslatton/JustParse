@@ -31,28 +31,26 @@ import Data.Maybe ( isJust, fromMaybe )
 import Data.List ( intercalate )
 
 -- | @regex@ takes a regular expression in the form of a 'String' and,
--- if the regex is valid, returns a 'Parser' that parses that regex.
--- If the regex is invalid, it returns a Parser that will always fail.
--- The returned parser is greedy.
-regex :: Stream s Char => String -> Parser s Match
-regex = greedy . fromMaybe mzero . parseOnly regular
+-- if the regex is valid, returns a greedy 'Parser' that parses that regex.
+-- If the regex is invalid, it returns Nothing.
+regex :: Stream s Char => String -> Maybe (Parser s Match)
+regex = liftM greedy . regex_
 {-# INLINE regex #-}
 
 -- | Like 'regex', but returns a branching (non-greedy) parser.
-regex_ :: Stream s Char => String -> Parser s Match
-regex_ = fromMaybe mzero . parseOnly regular
+regex_ :: Stream s Char => String -> Maybe (Parser s Match)
+regex_ = parseOnly (regular <* eof)
 {-# INLINE regex_ #-}
 
 -- | The same as 'regex', but only returns the full matched text.
-regex' :: Stream s Char => String -> Parser s String
-regex' = liftM matched . regex 
+regex' :: Stream s Char => String -> Maybe (Parser s String)
+regex' = liftM (liftM matched) . regex
 {-# INLINE regex' #-}
 
 -- | The same as 'regex_', but only returns the full matched text.
-regex_' :: Stream s Char => String -> Parser s String
-regex_' = liftM matched . regex_
+regex_' :: Stream s Char => String -> Maybe (Parser s String)
+regex_' = liftM (liftM matched) . regex_
 {-# INLINE regex_' #-}
-
 
 -- | The result of a 'regex'
 data Match = 
