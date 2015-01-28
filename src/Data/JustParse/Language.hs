@@ -25,10 +25,11 @@ import Data.JustParse.Combinator
 import Data.JustParse.Numeric
 import Data.JustParse.Char
 
-import Control.Monad ( liftM, mzero )
+import Control.Monad ( liftM, mzero, void )
 import Data.Monoid ( Monoid, mconcat, mempty, mappend )
 import Data.Maybe ( isJust, fromMaybe )
 import Data.List ( intercalate )
+import Control.Applicative ( (<*), (<$) )
 
 -- | @regex@ takes a regular expression in the form of a 'String' and,
 -- if the regex is valid, returns a greedy 'Parser' that parses that regex.
@@ -87,11 +88,14 @@ parser = choice [
     pipe,
     plus,
     question,
+    lookAheadAssert,
+    lookAheadAssertNot,
     group,
     character,
     charClass,
     negCharClass,
-    period
+    period,
+    endOfLine
     ]
 {-# INLINE parser #-}
 
@@ -101,6 +105,8 @@ parserNP = choice [
     mn,
     plus,
     question,
+    lookAheadAssert,
+    lookAheadAssertNot,
     group,
     character,
     charClass,
@@ -116,13 +122,15 @@ restricted = choice [
     character,
     charClass,
     negCharClass,
+    lookAheadAssert,
+    lookAheadAssertNot,
     group,
     period
     ]
 {-# INLINE restricted #-}
 
 unreserved :: Stream s Char => Parser s Char 
-unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?|."
+unreserved = (char '\\' >> anyChar ) <|> noneOf "()[]\\*+{}^?|.$"
 {-# INLINE unreserved #-}
 
 character :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
@@ -221,3 +229,34 @@ pipe =
         p' <- parser
         return $ p <||> p'
 {-# INLINE pipe #-}
+
+-- (?=pattern) : positive look-ahead assertion
+lookAheadAssert :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
+lookAheadAssert =
+    do
+        string "(?="
+        p <- regular
+        char ')'
+        return $ do
+            lookAhead p
+            return $ Match "" []
+{-# INLINE lookAheadAssert #-}
+
+-- (?!pattern) : negative look-ahead assertion
+lookAheadAssertNot :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
+lookAheadAssertNot =
+    do
+        string "(?!"
+        p <- regular
+        char ')'
+        return $ do
+            assertNotP $ lookAhead p
+            return $ Match "" []
+{-# INLINE lookAheadAssertNot #-}
+
+endOfLine :: (Stream s0 Char, Stream s1 Char) => Parser s0 (Parser s1 Match)
+endOfLine =
+    do
+        char '$' >> eof
+        return $ Match "" [] <$ (void eol <|> eof)
+{-# INLINE endOfLine #-}

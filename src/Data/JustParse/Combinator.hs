@@ -25,6 +25,7 @@ module Data.JustParse.Combinator (
     test,
     try,
     (<|>),
+    assertNotP,
 
     -- * Token Parsers
     anyToken,
@@ -561,3 +562,8 @@ perm_ ps =
         (i, r) <- select_ ps
         M.liftM (r:) (perm_ (let (a,b) = splitAt i ps in a ++ tail b)) 
 {-# INLINE perm_ #-}
+
+-- | Negate a parser.
+assertNotP :: Stream s e => Parser s a -> Parser s ()
+assertNotP p = optional p >>= guard . maybe True (const False)
+{-# INLINE assertNotP #-}
