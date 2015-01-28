@@ -99,3 +99,4 @@ parseOnly p s =
     case finalize (parse (greedy p) (Open s)) of
         [] -> Nothing
         (Done v _:_) -> Just v
+        (Partial _:_) -> error "parseOnly returned Partial"
