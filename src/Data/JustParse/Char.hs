@@ -19,6 +19,7 @@ module Data.JustParse.Char (
     latin1,
     control,
     space,
+    spaces,
     lower,
     upper,
     alpha,
