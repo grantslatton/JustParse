@@ -1,5 +1,5 @@
 name:                JustParse
-version:             2.1
+version:             2.2.1
 synopsis:            A simple and comprehensive Haskell parsing library
 description:         A simple and comprehensive Haskell parsing library
 homepage:            https://github.com/grantslatton/JustParse

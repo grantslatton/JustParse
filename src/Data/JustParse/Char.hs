@@ -19,6 +19,7 @@ module Data.JustParse.Char (
     latin1,
     control,
     space,
+    spaces,
     lower,
     upper,
     alpha,
@@ -72,6 +73,11 @@ space :: Stream s Char =>  Parser s Char
 space = satisfy isSpace
 {-# INLINE space #-}
 
+-- | Parse many spaces.
+spaces :: Stream s Char => Parser s [Char]
+spaces = many space
+{-# INLINE spaces #-}
+
 -- | Parse a lowercase character.
 lower :: Stream s Char =>  Parser s Char
 lower = satisfy isLower
@@ -122,9 +128,9 @@ caseInsensitiveString :: Stream s Char => String -> Parser s String
 caseInsensitiveString = mapM caseInsensitiveChar 
 {-# INLINE caseInsensitiveString #-}
 
--- | Parses until a newline, carriage return + newline, or newline + carriage return.
+-- | Parses until a newline, carriage return, carriage return + newline, or newline + carriage return.
 eol :: Stream s Char => Parser s String
-eol = choice [string "\r\n", string "\n\r", string "\n"]
+eol = choice [string "\r\n", string "\n\r", string "\n", string "\r"]
 {-# INLINE eol #-}
 
 -- | Makes common types such as 'String's into a Stream.
