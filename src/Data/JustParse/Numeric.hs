@@ -10,27 +10,27 @@ Portability : portable
 Parsers for dealing with signed and unsigned 'Int's and 'Float's.
 -}
 
+{-# LANGUAGE Safe #-}
 module Data.JustParse.Numeric (
-    decDigit,
-    hexDigit,
-    unsignedDecInt,
-    unsignedDecInt_,
-    unsignedHexInt,
-    unsignedHexInt_,
-    decInt,
-    decInt_,
-    hexInt,
-    hexInt_,
-    decFloat,
-    decFloat_,
+      decDigit
+    , hexDigit
+    , unsignedDecInt
+    , unsignedDecInt_
+    , unsignedHexInt
+    , unsignedHexInt_
+    , decInt
+    , decInt_
+    , hexInt
+    , hexInt_
+    , decFloat
+    , decFloat_
 ) where
 
-{-# LANGUAGE Safe #-}
 import Data.JustParse.Combinator
 import Data.JustParse.Internal
 import qualified Data.JustParse.Char as C
 import Control.Monad ( liftM, liftM2 )
-import Data.Char ( ord, digitToInt, toUpper, isDigit, isHexDigit )
+import Data.Char ( digitToInt )
 
 -- | Parse a single decimal digit into an 'Int'.
 decDigit :: Stream s Char => Parser s Int
@@ -46,10 +46,9 @@ hexDigit = liftM digitToInt C.hexDigit
 unsignedDecInt :: Stream s Char => Parser s Int
 unsignedDecInt = decDigit >>= g
     where
-        g x = 
-            do
-                d <- decDigit
-                g (x*10+d)
+        g x = do
+            d <- decDigit
+            g (x * 10 + d)
             <|> return x
 {-# INLINE unsignedDecInt #-}
 
@@ -57,10 +56,9 @@ unsignedDecInt = decDigit >>= g
 unsignedDecInt_ :: Stream s Char => Parser s Int
 unsignedDecInt_ = decDigit >>= g
     where
-        g x = 
-            do
-                d <- decDigit
-                g (x*10+d)
+        g x = do
+            d <- decDigit
+            g (x * 10 + d)
             <||> return x
 {-# INLINE unsignedDecInt_ #-}
 
@@ -68,10 +66,9 @@ unsignedDecInt_ = decDigit >>= g
 unsignedHexInt :: Stream s Char => Parser s Int
 unsignedHexInt = hexDigit >>= g
     where
-        g x = 
-            do
-                d <- hexDigit
-                g (x*16+d)
+        g x = do
+            d <- hexDigit
+            g (x * 16 + d)
             <|> return x
 {-# INLINE unsignedHexInt #-}
 
@@ -79,79 +76,72 @@ unsignedHexInt = hexDigit >>= g
 unsignedHexInt_ :: Stream s Char => Parser s Int
 unsignedHexInt_ = hexDigit >>= g
     where
-        g x = 
-            do
-                d <- hexDigit
-                g (x*16+d)
+        g x = do
+            d <- hexDigit
+            g (x * 16 + d)
             <||> return x
 {-# INLINE unsignedHexInt_ #-}
 
 -- | Parse a series of decimal digits into an 'Int' with an optional sign.
 decInt :: Stream s Char => Parser s Int
-decInt = 
-    do
-        sign <- optional (oneOf "-+")
-        num <- unsignedDecInt
-        case sign of
-            Just '-' -> return (-num)
-            _ -> return num
+decInt = do
+    sign <- optional (oneOf "-+")
+    num <- unsignedDecInt
+    case sign of
+        Just '-' -> return (-num)
+        _ -> return num
 {-# INLINE decInt #-}
 
 -- | Branching version of 'decInt'.
 decInt_ :: Stream s Char => Parser s Int
-decInt_ = 
-    do
-        sign <- optional (oneOf "-+")
-        num <- unsignedDecInt_
-        case sign of
-            Just '-' -> return (-num)
-            _ -> return num
+decInt_ = do
+    sign <- optional (oneOf "-+")
+    num <- unsignedDecInt_
+    case sign of
+        Just '-' -> return (-num)
+        _ -> return num
 {-# INLINE decInt_ #-}
 
 -- | Parse a series of hexadecimal digits into an 'Int' with an optional 
 -- sign.
 hexInt :: Stream s Char => Parser s Int
-hexInt = 
-    do
-        sign <- optional (oneOf "-+")
-        num <- unsignedHexInt
-        case sign of
-            Just '-' -> return (-num)
-            _ -> return num
+hexInt = do
+    sign <- optional (oneOf "-+")
+    num <- unsignedHexInt
+    case sign of
+        Just '-' -> return (-num)
+        _ -> return num
 {-# INLINE hexInt #-}
 
 -- | Branching versino of 'hexInt'.
 hexInt_ :: Stream s Char => Parser s Int
-hexInt_ = 
-    do
-        sign <- optional (oneOf "-+")
-        num <- unsignedHexInt_
-        case sign of
-            Just '-' -> return (-num)
-            _ -> return num
+hexInt_ = do
+    sign <- optional (oneOf "-+")
+    num <- unsignedHexInt_
+    case sign of
+        Just '-' -> return (-num)
+        _ -> return num
 {-# INLINE hexInt_ #-}
 
 -- | Parse a float. If a decimal point is present, it must have at 
 -- least one digit before and after the decimal point.
 decFloat :: Stream s Char => Parser s Float
-decFloat = 
-    do
-        sign <- optional (oneOf "-+")
-        whole <- many1 C.digit
-        fractional <- option ".0" (liftM2 (:) (C.char '.') (many1 C.digit))
-        case sign of
-            Just '-' -> return (-(read (whole ++ fractional)))
-            _ -> return (read (whole ++ fractional))
+decFloat = do
+    sign <- optional (oneOf "-+")
+    whole <- many1 C.digit
+    fractional <- option ".0" (liftM2 (:) (C.char '.') (many1 C.digit))
+    case sign of
+        Just '-' -> return (-(read (whole ++ fractional)))
+        _ -> return (read (whole ++ fractional))
 {-# INLINE decFloat #-}
 
 -- | Branching version of decFloat.
 decFloat_ :: Stream s Char => Parser s Float
-decFloat_ = 
-    do
-        sign <- optional (oneOf "-+")
-        whole <- many1_ C.digit
-        fractional <- option_ ".0" (liftM2 (:) (C.char '.') (many1_ C.digit))
-        case sign of
-            Just '-' -> return (-(read (whole ++ fractional)))
-            _ -> return (read (whole ++ fractional))
+decFloat_ = do
+    sign <- optional (oneOf "-+")
+    whole <- many1_ C.digit
+    fractional <- option_ ".0" (liftM2 (:) (C.char '.') (many1_ C.digit))
+    case sign of
+        Just '-' -> return (-(read (whole ++ fractional)))
+        _ -> return (read (whole ++ fractional))
 {-# INLINE decFloat_ #-}

@@ -22,17 +22,20 @@ module Data.JustParse (
 
     -- *** Recursive combinatorial parsing
     -- $quickstart3
-    runParser,
-    parseOnly,
-    extend,
-    finalize,
-    Parser,
-    Result(..),
-    Stream(..)
+      Parser
+    , Result
+    , Stream(..)
+    , extend
+    , isPartial
+    , isDone
+    , parseOnly
+    , results
+    , runParser
 ) where
 
-import Data.JustParse.Internal
+import Data.JustParse.Internal 
 import Data.JustParse.Combinator
+import Data.Monoid
 
 -- $overview
 -- 
@@ -40,7 +43,7 @@ import Data.JustParse.Combinator
 -- 
 -- * Makes extensive use of combinators
 -- 
--- * Allows for a parser to return a 'Partial' result
+-- * Allows for a parser to return a partial result
 -- 
 -- * Returns a list of all possible parses
 -- 
@@ -84,19 +87,27 @@ import Data.JustParse.Combinator
 --    return (v:vs)                         \-\-Concatenates and returns the full list
 -- @
 
--- | Supplies the input to the 'Parser'. Returns all 'Result' types, 
--- including 'Partial' results.
+-- | @result@ takes a list of results, concludes all parsing, 
+-- and extracts the completed parses and leftover streams.
+results :: Stream s t => [Result s a] -> [(a,s)]
+results = map (\r -> (value r, g (leftover r))) . finalize
+    where
+        g Null = mempty
+        g (Open s) = s
+        g (Closed s) = s
+
+-- | Supplies the input to the 'Parser'. Returns all 'Result's.
 runParser :: Parser s a -> s -> [Result s a]
 runParser p = parse p . Open
 
--- | This runs the 'Parser' greedily over the input, 'finalize's all the 
--- results, and returns the first successful result. If there are no 
+-- | This runs the 'Parser' greedily over the input, concludes all 
+-- parsing, and returns the first successful result. If there are no 
 -- successful results, it returns 'Nothing'. This is useful when you are
--- parsing something that you know will have no 'Partial's and you just
+-- parsing something that you know will have no partial parses and you just
 -- want an answer.
 parseOnly :: Stream s t => Parser s a -> s -> Maybe a
 parseOnly p s = 
     case finalize (parse (greedy p) (Open s)) of
         [] -> Nothing
         (Done v _:_) -> Just v
-        (Partial _:_) -> error "parseOnly returned Partial"
+        (Partial _:_) -> error "parseOnly returned a partial result, please file a bug at https://github.com/grantslatton/JustParse/issues/new"

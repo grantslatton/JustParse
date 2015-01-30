@@ -12,25 +12,25 @@ Several useful parsers for dealing with 'String's.
 
 {-# LANGUAGE Safe #-}
 module Data.JustParse.Char (
-    char,
-    anyChar,
-    caseInsensitiveChar,
-    ascii,
-    latin1,
-    control,
-    space,
-    spaces,
-    lower,
-    upper,
-    alpha,
-    alphaNum,
-    print,
-    digit,
-    octDigit,
-    hexDigit,
-    string,
-    caseInsensitiveString,
-    eol
+      char
+    , anyChar
+    , caseInsensitiveChar
+    , ascii
+    , latin1
+    , control
+    , space
+    , spaces
+    , lower
+    , upper
+    , alpha
+    , alphaNum
+    , print
+    , digit
+    , octDigit
+    , hexDigit
+    , string
+    , caseInsensitiveString
+    , eol
 ) where
 
 import Prelude hiding (print)
@@ -74,7 +74,7 @@ space = satisfy isSpace
 {-# INLINE space #-}
 
 -- | Parse many spaces.
-spaces :: Stream s Char => Parser s [Char]
+spaces :: Stream s Char => Parser s String
 spaces = many space
 {-# INLINE spaces #-}
 
@@ -133,7 +133,7 @@ eol :: Stream s Char => Parser s String
 eol = choice [string "\r\n", string "\n\r", string "\n", string "\r"]
 {-# INLINE eol #-}
 
--- | Makes common types such as 'String's into a Stream.
+-- | Makes common types such as 'String's into a @Stream@.
 instance Eq t => Stream [t] t where
     uncons [] = Nothing
     uncons (x:xs) = Just (x, xs)

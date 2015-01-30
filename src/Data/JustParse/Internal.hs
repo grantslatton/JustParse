@@ -16,24 +16,23 @@ Portability : portable
 {-# LANGUAGE Safe #-}
 
 module Data.JustParse.Internal (
-    Stream (..),
-    Parser (..),
-    Result (..),
-    InternalStream (..),
-    isDone,
-    isPartial,
-    toPartial,
-    finalize,
-    extend,
-    extend',
-    streamAppend
+      Stream (..)
+    , Parser (..)
+    , Result (..)
+    , InternalStream (..)
+    , isDone
+    , isPartial
+    , toPartial
+    , finalize
+    , extend
+    , extend'
+    , streamAppend
 ) where
 
 import Prelude hiding ( length )
 import Control.Monad ( MonadPlus, mzero, mplus, (>=>), ap )
 import Control.Applicative ( Alternative, Applicative, pure, (<*>), empty, (<|>) )
 import Data.Monoid ( Monoid, mempty, mappend )
-import Data.List ( intercalate )
 
 -- | A @Stream@ instance has a stream of type @s@, made up of tokens of 
 -- type @t@, which must be determinable by the stream. A minimal complete
@@ -43,25 +42,21 @@ class (Eq s, Monoid s) => Stream s t | s -> t where
     -- returns the first token of the stream, followed by the remainder
     -- of the stream, wrapped in a 'Just'.
     uncons :: Stream s t => s -> Maybe (t, s)
-    -- | The default @length@ implementation is @O(n)@. If your stream 
+    -- | The default @length@ implementation is @O(n * O(uncons))@. If your stream 
     -- provides a more efficient method for determining the length, it is 
     -- wise to override this. The @length@ method is only used by the 
     -- 'greedy' parser.
     length :: Stream s t => s -> Int
-    length s = 
-        case uncons s of
-            Nothing -> 0
-            Just (x, xs) -> 1 + length xs
+    length s = case uncons s of
+        Nothing -> 0
+        Just (_, xs) -> 1 + length xs
 
 data InternalStream s = 
-    Open s |
-    Closed s |
-    Null
+      Open s
+    | Closed s
+    | Null
 
-newtype Parser s a = 
-    Parser { 
-        parse :: InternalStream s -> [Result s a]
-    }
+newtype Parser s a = Parser { parse :: InternalStream s -> [Result s a] }
 
 instance Stream s t => Monoid (Parser s a) where
     mempty = mzero
@@ -91,47 +86,29 @@ instance Monad (Parser s) where
     (Parser p) >>= f = Parser $ p >=> g
         where
             g (Done a s) = parse (f a) s 
-            g (Partial p) = [Partial $ p >=> g] 
+            g (Partial p') = [Partial $ p' >=> g] 
     {-# INLINE (>>=) #-}
 
 instance Stream s t => MonadPlus (Parser s) where
     mzero = Parser $ const []
     {-# INLINE mzero #-}
-    mplus a b = Parser $ \s ->
-        let
-            g [] = parse b s
-            g xs 
-                | any isDone xs = xs
-                | otherwise = [Partial $ \s' -> 
-                    -- case needed for proper finalization
-                    case s' of
-                        -- if finalized
-                        Null -> 
-                            case finalize (parse a s) of
-                                -- if parser a doesn't yield, try b
-                                [] -> finalize (parse b s)
-                                -- otherwise give what a yielded
-                                r -> r
-                        -- if not finalized
-                        _ -> parse (mplus a b) (streamAppend s s')]
-
+    mplus a b = Parser $ \s -> let
+        g [] = parse b s
+        g xs 
+            | any isDone xs = xs
+            | otherwise = [Partial $ \s' -> case s' of
+                Null -> case finalize (parse a s) of 
+                    [] -> finalize (parse b s)
+                    r -> r
+                _ -> parse (mplus a b) (streamAppend s s')]
         in
             g (parse a s) 
     {-# INLINE mplus #-}
 
-data Result s a 
-    -- | A @Partial@ wraps the same function as a Parser. Extend it
-    -- with 'extend' or conclude parsing with 'finalize'.
-    =
-    Partial {
-        continue    :: InternalStream s -> [Result s a]
-    } |
-    -- | A @Done@ contains the resultant @value@, and the @leftover@ 
-    -- stream, if any.
-    Done {
-        value       :: a,
-        leftover    :: InternalStream s
-    } 
+data Result s a =
+      Partial { continue :: InternalStream s -> [Result s a] }
+    | Done { value :: a, leftover :: InternalStream s }
+
 
 isDone :: Result s a -> Bool
 isDone (Done _ _) = True
@@ -153,14 +130,6 @@ instance Functor (Result s) where
     fmap f (Done a s) = Done (f a) s
     {-# INLINE fmap #-}
 
-
-instance Show a => Show (Result s a) where
-    show (Partial _) = "Partial"
-    show (Done a _) = show a
-    {-# INLINE show #-}
-
--- | @finalize@ takes a list of results (presumably returned from a 
--- 'Parser' or 'Partial', concludes all parsing, leaving only 'Done's.
 finalize :: Stream s t => [Result s a] -> [Result s a]
 finalize rs = rs >>= g 
     where
@@ -168,24 +137,22 @@ finalize rs = rs >>= g
         g (Done a s') = [Done a (streamAppend s' Null)]
 {-# INLINE finalize #-}
 
--- | @extend@ takes an @s@ as input, and supplies the input to all 
--- values  in the 'Result' list. 
-extend :: Stream s t => s -> [Result s a] -> [Result s a]
-extend s rs = extend' (Open s) rs
+-- | Supplies partial results with the given 'Stream'
+extend :: Stream s t =>  [Result s a] -> s -> [Result s a]
+extend p = extend' p . Open
 {-# INLINE extend #-}
 
-extend' :: Stream s t => InternalStream s -> [Result s a] -> [Result s a]
-extend' s rs = rs >>= g 
+extend' :: Stream s t => [Result s a] -> InternalStream s -> [Result s a]
+extend' rs s = rs >>= g 
     where
         g (Partial p) = p s
         g (Done a s') = [Done a (streamAppend s' s)]
 {-# INLINE extend' #-}
 
-
-
 streamAppend :: Stream s t => InternalStream s -> InternalStream s -> InternalStream s
 streamAppend Null _ = Null
 streamAppend (Open s) Null = Closed s
+streamAppend (Open s) (Open s') = Open (mappend s s')
 streamAppend (Open s) (Closed s') = Closed (mappend s s')
 streamAppend (Closed s) _ = Closed s
 {-# INLINE streamAppend #-}

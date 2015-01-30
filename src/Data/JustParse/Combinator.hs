@@ -13,89 +13,92 @@ The bread and butter of combinatory parsing.
 {-# LANGUAGE Safe #-}
 module Data.JustParse.Combinator (
     -- * Utility Parsers
-    assert,
-    eof,
-    eitherP,
-    greedy,
-    guard,
-    lookAhead,
-    notFollowedBy,
-    option,
-    optional,
-    test,
-    try,
-    (<|>),
-    assertNotP,
+      assert
+    , atLeast
+    , atLeast_
+    , atMost
+    , atMost_
+    , eof
+    , eitherP
+    , greedy
+    , guard
+    , lookAhead
+    , notFollowedBy
+    , option
+    , optional
+    , test
+    , try
+    , (<|>)
+    , assertNotP
 
     -- * Token Parsers
-    anyToken,
-    noneOf,
-    oneOf,
-    satisfy,
-    token,
+    , anyToken
+    , noneOf
+    , oneOf
+    , satisfy
+    , token
 
     -- * Repetetive Parsers
-    chainl,
-    chainl1,
-    chainr,
-    chainr1,
-    count,
-    endBy,
-    endBy1,
-    exactly,
-    many,
-    many1,
-    manyTill,
-    mN,
-    sepBy,
-    sepBy1,
-    skipMany,
-    skipMany1,
-    sepEndBy,
-    sepEndBy1,
-    takeWhile,
-    takeWhile1,
+    , chainl
+    , chainl1
+    , chainr
+    , chainr1
+    , count
+    , endBy
+    , endBy1
+    , exactly
+    , many
+    , many1
+    , manyTill
+    , mN
+    , sepBy
+    , sepBy1
+    , skipMany
+    , skipMany1
+    , sepEndBy
+    , sepEndBy1
+    , takeWhile
+    , takeWhile1
 
     -- * Group Parsers
-    choice,
-    perm,
-    select,
+    , choice
+    , perm
+    , select
 
     -- * Branching Parsers
-    branch,
-    (<||>),
-    chainl_,
-    chainr_,
-    chainl1_,
-    chainr1_,
-    choice_,
-    eitherP_,
-    endBy_,
-    endBy1_,
-    many_,
-    many1_,
-    mN_,
-    option_,
-    optional_,
-    perm_,
-    select_,
-    sepBy_,
-    sepBy1_,
-    sepEndBy_,
-    sepEndBy1_,
-    skipMany_,
-    skipMany1_,
-    takeWhile_,
-    takeWhile1_
+    , branch
+    , (<||>)
+    , chainl_
+    , chainr_
+    , chainl1_
+    , chainr1_
+    , choice_
+    , eitherP_
+    , endBy_
+    , endBy1_
+    , many_
+    , many1_
+    , mN_
+    , option_
+    , optional_
+    , perm_
+    , select_
+    , sepBy_
+    , sepBy1_
+    , sepEndBy_
+    , sepEndBy1_
+    , skipMany_
+    , skipMany1_
+    , takeWhile_
+    , takeWhile1_
 ) where
 
 import Prelude hiding ( print, length, takeWhile )
 import Data.JustParse.Internal ( 
-    Stream(..), Parser(..), Result(..), InternalStream(..), extend, extend', finalize, isDone, 
-    isPartial, toPartial, streamAppend )
-import Data.Monoid ( mempty, Monoid, mappend )
-import Data.Maybe ( fromMaybe )
-import Data.List ( minimumBy, foldl1', foldl' )
+      Stream(..), Parser(..), Result(..), InternalStream(..)
+    , extend', isDone, streamAppend )
+import Data.Maybe ( isNothing )
+import Data.List ( minimumBy, foldl1' )
 import Data.Ord ( comparing )
 import qualified Control.Monad as M
 import qualified Control.Applicative as A
@@ -248,12 +251,11 @@ many1_ p = M.liftM2 (:) p (many_ p)
 -- | Return 'True' if the parser would succeed if one were to apply it,
 -- otherwise, it returns 'False'. It does not consume input.
 test :: Stream s t => Parser s a -> Parser s Bool
-test p = 
-    do 
-        a <- optional (lookAhead p)
-        case a of
-            Nothing -> return False
-            _ -> return True
+test p = do
+    a <- optional (lookAhead p)
+    case a of
+        Nothing -> return False
+        _ -> return True
 {-# INLINE test #-}
 
 infixr 1 <|>
@@ -297,17 +299,16 @@ greedy (Parser p) = Parser $ \s -> g (p s)
         g [] = []
         g xs 
             | all isDone xs = [minimumBy (comparing (f . leftover)) xs]
-            | otherwise = [Partial $ \s -> g $ extend' s xs] 
+            | otherwise = [Partial $ \s -> g $ extend' xs s] 
 {-# INLINE greedy #-}
 
 -- | Attempts to apply a parser and returns a default value if it fails.
 option :: Stream s t => a -> Parser s a -> Parser s a
-option v p = 
-    do
-        r <- A.optional p
-        case r of
-            Nothing -> return v
-            Just v' -> return v'
+option v p = do
+    r <- A.optional p
+    case r of
+        Nothing -> return v
+        Just v' -> return v'
 {-# INLINE option #-}
 
 -- | Splits off two branches, one where the parse is attempted, and one 
@@ -456,11 +457,10 @@ chainl_ p o x = chainl1_ p o <||> return x
 chainl1 :: Stream s t => Parser s a -> Parser s (a -> a -> a) -> Parser s a
 chainl1 p o = p >>= f
     where
-        f x =
-            do
-                g <- o
-                y <- p
-                f (g x y)
+        f x = do
+            g <- o
+            y <- p
+            f (g x y)
             <|> return x
 {-# INLINE chainl1 #-}
 
@@ -469,11 +469,10 @@ chainl1 p o = p >>= f
 chainl1_ :: Stream s t => Parser s a -> Parser s (a -> a -> a) -> Parser s a
 chainl1_ p o = p >>= f
     where
-        f x =
-            do
-                g <- o
-                y <- p
-                f (g x y)
+        f x = do
+            g <- o
+            y <- p
+            f (g x y)
             <||> return x
 {-# INLINE chainl1_ #-}
 
@@ -492,11 +491,10 @@ chainr_ p o x = chainr1_ p o <||> return x
 chainr1 :: Stream s t => Parser s a -> Parser s (a -> a -> a) -> Parser s a
 chainr1 p o = p >>= f
     where
-        f x = 
-            do
-                g <- o
-                y <- chainr1 p o
-                return (g x y)
+        f x = do
+            g <- o
+            y <- chainr1 p o
+            return (g x y)
             <|> return x
 {-# INLINE chainr1 #-}
 
@@ -505,11 +503,10 @@ chainr1 p o = p >>= f
 chainr1_ :: Stream s t => Parser s a -> Parser s (a -> a -> a) -> Parser s a
 chainr1_ p o = p >>= f
     where
-        f x = 
-            do
-                g <- o
-                y <- chainr1_ p o
-                return (g x y)
+        f x = do
+            g <- o
+            y <- chainr1_ p o
+            return (g x y)
             <||> return x
 {-# INLINE chainr1_ #-}
 
@@ -521,15 +518,14 @@ notFollowedBy p = test p >>= assert . not
 -- | @manyTill a b@ parses multiple occurences of @a@ until @b@ would 
 -- succeed if tried.
 manyTill :: Stream s t => Parser s a -> Parser s b -> Parser s [a]
-manyTill p e = 
-    do
-        b <- test e
-        if b 
-            then return []
-            else M.liftM2 (:) p (manyTill p e)
+manyTill p e = do
+    b <- test e
+    if b 
+        then return []
+        else M.liftM2 (:) p (manyTill p e)
 {-# INLINE manyTill #-}
 
--- | Does nothing -- only used for @Parsec@ compatability.
+-- | Does nothing -- only used for @Parsec@ compatability. JustParse parsers always backtrack.
 try :: Stream s t => Parser s a -> Parser s a
 try = id
 {-# INLINE try #-}
@@ -548,22 +544,20 @@ eitherP_ a b = M.liftM Left a <||> M.liftM Right b
 -- | Parses a sequence of parsers in any order.
 perm :: Stream s t => [Parser s a] -> Parser s [a]
 perm [] = return []
-perm ps = 
-    do
-        (i, r) <- select ps
-        M.liftM (r:) (perm (let (a,b) = splitAt i ps in a ++ tail b)) 
+perm ps = do
+    (i, r) <- select ps
+    M.liftM (r:) (perm (let (a,b) = splitAt i ps in a ++ tail b)) 
 {-# INLINE perm #-}
 
 -- | Parses a sequence of parsers in all possible orders.
 perm_ :: Stream s t => [Parser s a] -> Parser s [a]
 perm_ [] = return []
-perm_ ps = 
-    do
-        (i, r) <- select_ ps
-        M.liftM (r:) (perm_ (let (a,b) = splitAt i ps in a ++ tail b)) 
+perm_ ps = do
+    (i, r) <- select_ ps
+    M.liftM (r:) (perm_ (let (a,b) = splitAt i ps in a ++ tail b)) 
 {-# INLINE perm_ #-}
 
 -- | Negate a parser.
 assertNotP :: Stream s e => Parser s a -> Parser s ()
-assertNotP p = optional p >>= guard . maybe True (const False)
+assertNotP p = optional p >>= guard . isNothing
 {-# INLINE assertNotP #-}
